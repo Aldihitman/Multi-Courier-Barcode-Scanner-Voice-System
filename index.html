@@ -1,0 +1,2513 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scan Resi Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil:wght@600;800&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h2>Scan Resi RJ BIKE</h2>
+    <p class="sub">Masuk pakai akun cabang kamu untuk mulai scan.</p>
+    <p class="field-label">Username</p>
+    <input type="text" id="loginUsername" autocomplete="username" placeholder="username">
+    <p class="field-label">Password</p>
+    <input type="password" id="loginPassword" autocomplete="current-password" placeholder="••••••••">
+    <div class="login-error" id="loginError"></div>
+    <button class="accent" id="loginBtn" style="width:100%;margin-top:14px;">Masuk</button>
+  </div>
+</div>
+
+<div class="wrap" id="appWrap" style="display:none;">
+
+  <div class="masthead">
+    <div>
+      <p class="masthead-title">Scan Resi RJ BIKE</p>
+      <div class="masthead-sub">Manifest digital &middot; scan &rarr; catat &rarr; unduh excel</div>
+    </div>
+    <div class="stat-badges">
+      <div class="badge"><b id="statToday">0</b><span id="statTodayLabel">hari ini</span></div>
+      <div class="badge"><b id="statTotal">0</b>total semua hari</div>
+      <div class="badge"><b id="statDup">0</b>duplikat</div>
+      <div class="badge warn-b"><b id="statNoDetail">0</b>belum ada detail</div>
+    </div>
+  </div>
+
+  <div class="cam-toggle-row" style="margin-top:10px;">
+    <div class="user-chip"><span id="sessionUserLabel">-</span><span class="role-tag" id="sessionRoleTag">-</span></div>
+    <button class="ghost small" id="manageBtn" style="display:none;">🛠 Kelola Cabang &amp; User</button>
+    <button class="ghost small" id="shopeeBtn" style="display:none;">🛍 Marketplace</button>
+    <button class="ghost small" id="logoutBtn" style="margin-left:auto;">Keluar</button>
+  </div>
+
+  <div class="barcode-rule"></div>  
+
+  <!-- SCAN PANEL -->
+  <div class="panel">
+    <p class="panel-title"><span class="n">1</span> Pindai / Input Resi</p>
+
+    <div class="scan-row">
+      <div class="scan-input-holder">
+        <p class="field-label">Nomor resi</p>
+        <input type="text" id="resiInput" placeholder="Klik di sini, lalu scan pakai alat scanner / ketik manual..." autocomplete="off" autocapitalize="characters">
+        <div class="stamp" id="stampBadge">✓ Tersimpan</div>
+      </div>
+      <div style="display:flex;flex-direction:column;">
+        <p class="field-label">&nbsp;</p>
+        <button class="accent btn-add" id="addBtn">+ Tambah</button>
+      </div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <p class="field-label">Cabang</p>
+      <select id="cabangSelect" style="display:none;"></select>
+      <input type="text" id="cabangReadonly" disabled style="display:none;">
+    </div>
+
+    <div class="row-2">
+      <div>
+        <p class="field-label">Kurir</p>
+        <select id="kurirSelect">
+          <option>SPX</option>
+          <option>J&amp;T Cargo Shopee</option>
+          <option>J&amp;T Cargo TikTok</option>
+          <option>J&amp;T Cargo Lazada</option>
+          <option>Anteraja Shopee</option>
+          <option>J&amp;T Express Tiktok</option>
+          <option>POS ID Shopee</option>
+          <option>LEX</option>
+          <option>JNE</option>
+          <option>J&amp;T Express</option>
+          <option>SiCepat</option>
+          <option>Anteraja</option>
+          <option>Ninja Xpress</option>
+          <option>ID Express</option>
+          <option>Lion Parcel</option>
+          <option>Pos Indonesia</option>
+          <option>Shopee Express</option>
+          <option>Lainnya</option>
+        </select>
+      </div>
+      <div>
+        <p class="field-label">Catatan (opsional)</p>
+        <input type="text" id="catatanInput" placeholder="mis. rak A3, retur, dsb">
+      </div>
+    </div>
+
+    <p class="hint">Tips: field resi di atas otomatis fokus, jadi kalau kamu pakai alat scanner USB/Bluetooth (yang berperilaku seperti keyboard), tinggal tembak barcode-nya lalu resi akan otomatis masuk ke daftar. Bisa juga ketik manual lalu tekan Enter.</p>
+
+    <div class="cam-toggle-row">
+      <button class="secondary" id="camToggleBtn">📷 Scan pakai kamera HP</button>
+      <span id="camUnsupportedInline" style="display:none;font-size:12px;color:var(--ink-soft);">Kamera scan otomatis tidak didukung browser ini &mdash; gunakan scanner USB atau input manual.</span>
+      <button class="ghost small" id="prefixSettingsBtn" style="margin-left:auto;">⚙ Kode Unik Kurir</button>
+    </div>
+    <div class="cam-wrap" id="camWrap">
+      <video id="camVideo" playsinline muted></video>
+      <div class="scan-line" id="scanLine"></div>
+      <div class="cam-status" id="camStatus">Arahkan kamera ke barcode resi...</div>
+    </div>
+  </div>
+
+  <!-- MANIFEST PANEL -->
+  <div class="panel">
+    <p class="panel-title"><span class="n">2</span> Daftar Manifest</p>
+
+    <div class="date-row" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <p class="field-label" style="margin:0;">📅 Tanggal</p>
+      <select id="dateSelect" style="max-width:260px;"></select>
+      <span id="archiveNote" class="hint" style="display:none;margin:0;align-items:center;gap:8px;">📁 Mode arsip — resi baru cuma bisa ditambah di sesi hari ini. <button class="ghost small" id="backTodayBtn" type="button">Kembali ke hari ini</button></span>
+    </div>
+
+    <div class="table-controls">
+      <div class="filters">
+        <input type="text" id="searchInput" placeholder="Cari resi / catatan..." style="flex:1;min-width:160px;">
+        <select id="filterKurir">
+          <option value="">Semua kurir</option>
+        </select>
+        <select id="filterTahap">
+          <option value="">Semua tahap</option>
+          <option value="1">Scan 1</option>
+          <option value="2">Siap kirim (scan ke-2)</option>
+          <option value="3">Sudah scan (ke-3 dst)</option>
+        </select>
+        <select id="filterBatch">
+          <option value="">Semua batch</option>
+        </select>
+        <select id="filterCabang" style="display:none;">
+          <option value="">Semua cabang</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="secondary small" id="clearFilterBtn">Reset filter</button>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:28px;"><input type="checkbox" id="selectAllChk" title="Pilih semua"></th>
+            <th style="width:36px;">No</th>
+            <th>Resi</th>
+            <th style="width:130px;">Kurir</th>
+            <th style="width:90px;">Tahap</th>
+            <th style="width:80px;">Batch</th>
+            <th style="width:150px;">Discan oleh</th>
+            <th style="width:120px;">Waktu Scan</th>
+            <th style="width:230px;">Detail Pesanan</th>
+            <th style="width:100px;"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState">
+        <div class="big">Belum ada resi</div>
+        <div>Scan atau ketik nomor resi pertama kamu di atas.</div>
+      </div>
+    </div>
+    <div class="pager" id="pager" style="display:none;">
+      <span class="pager-info" id="pagerInfo"></span>
+      <span class="pager-btns" id="pagerBtns"></span>
+      <label class="pager-size">Per halaman
+        <select id="pageSizeSel">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="chips" id="courierChips"></div>
+
+    <div class="footer-bar">
+      <div style="font-size:12px;color:var(--ink-soft);">
+        Data tersimpan otomatis ke database server (lintas device &amp; cabang).
+      </div>
+      <div class="footer-actions">
+        <button class="ghost small" id="bulkDeleteBtn" disabled>Hapus Terpilih (0)</button>
+        <button class="ghost small" id="resetAllBtn">Hapus semua data</button>
+        <button class="accent" id="exportBtn">⬇ Unduh Excel (.xlsx)</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>Detail Pesanan</h3>
+    <div class="modal-resi" id="modalResiLabel"></div>
+
+    <p class="field-label">Nama toko / pengirim</p>
+    <input type="text" id="mNamaToko" placeholder="mis. Toko Berkah Jaya">
+
+    <p class="field-label">Nama penerima</p>
+    <input type="text" id="mNamaPenerima" placeholder="mis. Budi Santoso">
+
+    <p class="field-label">Alamat</p>
+    <textarea id="mAlamat" placeholder="Alamat lengkap penerima"></textarea>
+
+    <div class="row-2">
+      <div>
+        <p class="field-label">Nama barang</p>
+        <input type="text" id="mNamaBarang" placeholder="mis. Kaos Polos L">
+      </div>
+      <div>
+        <p class="field-label">Qty</p>
+        <input type="text" id="mQty" placeholder="mis. 2">
+      </div>
+    </div>
+
+    <p class="field-label">Tanggal kirim</p>
+    <input type="text" id="mTanggalKirim" placeholder="mis. 26/08/2026">
+
+    <p class="field-label">Catatan</p>
+    <input type="text" id="mCatatan" placeholder="opsional">
+
+    <div class="ocr-box">
+      <p class="field-label" style="margin-top:0;">📋 Tempel teks hasil foto label (dari Google Lens / Notes HP)</p>
+      <textarea id="ocrPasteArea" placeholder="Foto kertas resi pakai Google Lens (Android) atau app Notes/Kamera (iPhone) → salin semua teksnya → tempel di sini."></textarea>
+      <button class="secondary small" id="ocrExtractBtn" type="button" style="margin-top:8px;">🪄 Ekstrak ke field di atas</button>
+      <p class="ocr-note">Ini bukan pemindai barcode — barcode di kertas cuma berisi nomor resi. Untuk ambil alamat/nama/barang dari kertas, cara paling akurat memang lewat OCR foto begini, dicek dulu sebelum disimpan.</p>
+    </div>
+
+    <div class="modal-actions">
+      <button class="secondary" id="modalCancelBtn">Batal</button>
+      <button class="accent" id="modalSaveBtn">Simpan Detail</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="prefixModalOverlay">
+  <div class="modal">
+    <h3>Kode Unik &amp; Suara per Ekspedisi</h3>
+    <p class="modal-resi" style="margin-bottom:12px;">Kode unik dipakai untuk auto-deteksi kurir dari awalan nomor resi (pisahkan dengan koma, mis. <code>110, 100</code>). Upload MP3 kalau mau ganti suara notifikasi kurir tertentu — kalau tidak diupload, dipakai suara default (atau bunyi "ting" polos kalau belum ada).</p>
+    <div id="prefixList" style="display:flex;flex-direction:column;gap:10px;max-height:42vh;overflow-y:auto;"></div>
+
+    <div style="border-top:1px dashed var(--line-strong);margin-top:14px;padding-top:14px;">
+      <p class="field-label" style="margin-bottom:8px;">+ Tambah Ekspedisi Baru</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="newKurirName" placeholder="Nama ekspedisi (mis. Wahana)" style="flex:1 1 140px;padding:8px 10px;font-size:13px;">
+        <input type="text" id="newKurirPrefix" placeholder="Kode unik (opsional, mis. WHN)" style="flex:1 1 140px;padding:8px 10px;font-size:13px;">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button type="button" class="secondary small" id="newKurirSoundBtn">🔊 Upload Suara (opsional)</button>
+        <span id="newKurirSoundStatus" style="font-size:12px;color:var(--ink-soft);">Belum ada file</span>
+        <input type="file" id="newKurirSoundInput" accept="audio/mpeg,audio/mp3,.mp3" style="display:none;">
+      </div>
+      <button type="button" class="accent small" id="addKurirBtn" style="margin-top:10px;">+ Tambah Ekspedisi</button>
+    </div>
+
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="ghost small" id="prefixResetBtn" type="button">↺ Kembalikan default</button>
+      <div style="display:flex;gap:8px;">
+        <button class="secondary" id="prefixCancelBtn">Batal</button>
+        <button class="accent" id="prefixSaveBtn">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="adminModalOverlay">
+  <div class="modal">
+    <h3>Kelola Cabang &amp; User</h3>
+    <p class="modal-resi" style="margin-bottom:12px;">Tiap user login pakai username + password dan otomatis ke-tag ke satu cabang. Semua hasil scan dari semua cabang masuk ke database yang sama — dibedakan lewat kolom "Cabang" di tabel &amp; file Excel.</p>
+
+    <p class="field-label">+ Tambah Cabang</p>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="newCabangName" placeholder="mis. Cabang Bandung" style="flex:1;">
+      <button class="secondary small" id="addCabangBtn" type="button">+ Tambah</button>
+    </div>
+    <div id="cabangListWrap" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;max-height:20vh;overflow-y:auto;"></div>
+
+    <div style="border-top:1px dashed var(--line-strong);margin-top:16px;padding-top:14px;">
+      <p class="field-label">+ Tambah User</p>
+      <div class="row-2">
+        <input type="text" id="newUserUsername" placeholder="Username">
+        <input type="text" id="newUserPassword" placeholder="Password">
+      </div>
+      <div class="row-2" style="margin-top:10px;">
+        <select id="newUserRole">
+          <option value="user">User (staf 1 cabang)</option>
+          <option value="admin">Admin (lihat semua cabang)</option>
+        </select>
+        <select id="newUserCabang"></select>
+      </div>
+      <button class="accent small" id="addUserBtn" type="button" style="margin-top:10px;">+ Tambah User</button>
+    </div>
+
+    <p class="field-label" style="margin-top:16px;">Daftar User</p>
+    <div id="userListWrap" style="display:flex;flex-direction:column;gap:6px;max-height:26vh;overflow-y:auto;"></div>
+
+    <div class="modal-actions">
+      <button class="secondary" id="adminModalCloseBtn">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="shopeeModalOverlay">
+  <div class="modal">
+    <h3>Marketplace &mdash; tarik pesanan</h3>
+    <div id="platTabs" style="display:flex;gap:6px;margin-bottom:12px;">
+      <button type="button" class="secondary small plat-tab" data-p="shopee">Shopee</button>
+      <button type="button" class="ghost small plat-tab" data-p="lazada">Lazada</button>
+      <button type="button" class="ghost small plat-tab" data-p="tiktok">TikTok / Tokopedia</button>
+    </div>
+    <p class="modal-resi" style="margin-bottom:12px;">Pesanan ditarik dari API resmi marketplace dan disimpan di database. Saat resi discan, nama toko, penerima, alamat, barang, qty, tanggal kirim &amp; nomor pesanan terisi otomatis kalau resinya cocok.</p>
+
+    <div id="shopeeStatusBox" class="hint" style="margin:0 0 12px;">Memuat status...</div>
+
+    <div id="shopeeConnectBox" style="display:none;">
+      <p class="field-label">1. Buka halaman izin marketplace</p>
+      <a id="shopeeAuthLink" class="secondary small" target="_blank" rel="noopener" style="display:inline-block;padding:8px 12px;border:1.5px solid var(--line-strong);border-radius:8px;text-decoration:none;">Buka halaman otorisasi ↗</a>
+      <p class="hint" style="margin-top:6px;">Login dengan akun penjual &amp; setujui. Setelah itu browser pindah ke alamat <code id="shopeeRedirectHint">redirect_url</code> (halamannya boleh kosong/error — itu normal).</p>
+      <p class="field-label" style="margin-top:12px;">2. Tempel SELURUH alamat hasil redirect</p>
+      <input type="text" id="shopeeCodeInput" placeholder="https://example.com/?code=xxxx&amp;shop_id=123456" autocomplete="off">
+      <p class="hint" style="margin-top:6px;">Kode cuma berlaku sebentar dan sekali pakai — langsung tempel &amp; klik simpan.</p>
+      <button class="accent small" id="shopeeConnectBtn" type="button" style="margin-top:8px;">Simpan otorisasi</button>
+    </div>
+
+    <div id="shopeeSyncBox" style="display:none;">
+      <div class="row-2">
+        <div>
+          <p class="field-label">Tarik pesanan</p>
+          <select id="shopeeDays">
+            <option value="3">3 hari terakhir</option>
+            <option value="7" selected>7 hari terakhir</option>
+            <option value="15">15 hari terakhir</option>
+            <option value="30">30 hari terakhir</option>
+            <option value="90">90 hari terakhir</option>
+          </select>
+        </div>
+        <div>
+          <p class="field-label">Status</p>
+          <select id="shopeeStatus" title="Filter status hanya berlaku untuk Shopee">
+            <option value="">Semua status</option>
+            <option value="READY_TO_SHIP">Siap dikirim</option>
+            <option value="PROCESSED">Diproses</option>
+            <option value="SHIPPED">Dikirim</option>
+            <option value="COMPLETED">Selesai</option>
+            <option value="UNPAID">Belum dibayar</option>
+            <option value="IN_CANCEL">Proses batal</option>
+            <option value="CANCELLED">Dibatalkan</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button class="accent" id="shopeeSyncBtn" type="button">⬇ Tarik pesanan sekarang</button>
+        <button class="secondary" id="shopeeExportBtn" type="button">Unduh Excel pesanan (semua)</button>
+      </div>
+      <p class="hint" id="shopeeSyncResult" style="margin-top:10px;"></p>
+      <p class="hint">Nomor resi baru ada setelah pesanan diatur pengirimannya di Shopee. Kalau banyak pesanan, resi diambil bertahap (klik tarik lagi sampai tidak ada yang tertunda).</p>
+      <button class="ghost small" id="shopeeDisconnectBtn" type="button" style="margin-top:6px;">Putuskan toko</button>
+    </div>
+
+    <div class="modal-actions">
+      <button class="secondary" id="shopeeCloseBtn">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ============== KONEKSI KE DATABASE (PHP API di folder api/) ==============
+  // Semua data BISNIS (login/user, cabang, resi hasil scan) sekarang disimpan
+  // di MySQL lewat endpoint-endpoint di folder api/, BUKAN lagi di localStorage
+  // / window.storage. Helper appStorage di bawah ini cuma dipakai untuk setting
+  // ringan yang sifatnya per-device (suara notifikasi custom & kode unik kurir).
+  const API_BASE = 'api/';
+  async function api(path, opts){
+    opts = opts || {};
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+    let res;
+    try{
+      res = await fetch(API_BASE + path, Object.assign({ credentials: 'same-origin' }, opts, { headers }));
+    }catch(netErr){
+      const banner = document.getElementById('apiWarningBanner');
+      if(banner) banner.style.display = 'block';
+      throw new Error('Tidak bisa menghubungi server API. Cek koneksi/konfigurasi Laragon.');
+    }
+    let data = null;
+    try{ data = await res.json(); }catch(e){ /* respons kosong */ }
+    if(res.status === 401){
+      const wasLoggedIn = !!currentUser;
+      currentUser = null;
+      appWrap.style.display = 'none';
+      loginOverlay.style.display = 'flex';
+      if(wasLoggedIn) showLoginError('Sesi kamu berakhir, silakan login lagi.');
+      throw new Error('Belum login / sesi berakhir');
+    }
+    if(!res.ok){
+      throw new Error((data && data.error) || ('Terjadi kesalahan (' + res.status + ')'));
+    }
+    return data;
+  }
+
+  // ---- storage backend LOKAL (bukan untuk data bisnis) ----
+  const appStorage = (function(){
+    const hasNative = typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function';
+    if(hasNative) return window.storage;
+
+    console.warn('window.storage tidak tersedia — pakai localStorage sebagai fallback (data cuma tersimpan di browser ini).');
+    const PREFIX = 'resiApp__';
+    function fullKey(key, shared){ return PREFIX + (shared ? 'shared__' : 'priv__') + key; }
+    return {
+      async get(key, shared){
+        const raw = window.localStorage.getItem(fullKey(key, shared));
+        if(raw === null) return null;
+        return { key, value: raw, shared: !!shared };
+      },
+      async set(key, value, shared){
+        window.localStorage.setItem(fullKey(key, shared), value);
+        return { key, value, shared: !!shared };
+      },
+      async delete(key, shared){
+        window.localStorage.removeItem(fullKey(key, shared));
+        return { key, deleted: true, shared: !!shared };
+      },
+      async list(prefix, shared){
+        const base = PREFIX + (shared ? 'shared__' : 'priv__');
+        const full = base + (prefix || '');
+        const keys = [];
+        for(let i=0; i<window.localStorage.length; i++){
+          const k = window.localStorage.key(i);
+          if(k && k.indexOf(full) === 0) keys.push(k.slice(base.length));
+        }
+        return { keys, prefix: prefix || '', shared: !!shared };
+      }
+    };
+  })();
+
+  // ============== AUTH & MULTI-CABANG (data dari database lewat api/) ==============
+  const ALL_CABANG_SENTINEL = '__ALL__';
+  let appLoaded = false; // true setelah load() pertama selesai
+
+  let USERS = [];       // diisi dari GET api/users.php (khusus admin)
+  let CABANG_LIST = []; // [{id, nama}], diisi dari GET api/cabang.php
+  let currentUser = null; // {id, username, role, cabangId, cabangNama}
+
+  async function apiLoadCabangList(){
+    try{ return await api('cabang.php'); }
+    catch(e){ showToast(e.message, 'warn'); return []; }
+  }
+  async function apiLoadUsers(){
+    try{ return await api('users.php'); }
+    catch(e){ showToast(e.message, 'warn'); return []; }
+  }
+
+  function findCabangById(id){
+    return CABANG_LIST.find(c => String(c.id) === String(id));
+  }
+
+  function getActiveCabangId(){
+    if(currentUser.role === 'admin') return cabangSelect.value || ALL_CABANG_SENTINEL;
+    return currentUser.cabangId;
+  }
+  function isViewingAllCabang(){
+    return currentUser.role === 'admin' && getActiveCabangId() === ALL_CABANG_SENTINEL;
+  }
+  function getActiveCabangNama(){
+    if(isViewingAllCabang()) return 'Semua Cabang';
+    if(currentUser.role === 'admin'){
+      const c = findCabangById(getActiveCabangId());
+      return c ? c.nama : '-';
+    }
+    return currentUser.cabangNama || '-';
+  }
+
+  function populateCabangControls(){
+    const prevValForReload = cabangSelect.value;
+    if(currentUser.role === 'admin'){
+      cabangSelect.style.display = '';
+      cabangReadonly.style.display = 'none';
+      filterCabang.style.display = '';
+      const prevVal = cabangSelect.value;
+      const hadRealCabang = cabangSelect.options.length > 1; // sebelumnya sudah ada cabang sungguhan?
+      cabangSelect.innerHTML = '';
+      CABANG_LIST.forEach(c=>{
+        const opt = document.createElement('option');
+        opt.value = c.id; opt.textContent = c.nama;
+        cabangSelect.appendChild(opt);
+      });
+      const allOpt = document.createElement('option');
+      allOpt.value = ALL_CABANG_SENTINEL;
+      allOpt.textContent = '🔀 Semua Cabang (gabungan, hanya lihat & export)';
+      cabangSelect.appendChild(allOpt);
+      const validVals = CABANG_LIST.map(c=>String(c.id)).concat([ALL_CABANG_SENTINEL]);
+      // Kalau belum pernah ada cabang, pilihan satu-satunya "Semua Cabang" (cuma-lihat) —
+      // begitu cabang pertama dibuat, langsung pindah ke cabang itu supaya resi bisa diinput.
+      const keepPrev = prevVal && validVals.includes(prevVal) && (prevVal !== ALL_CABANG_SENTINEL || hadRealCabang);
+      if(keepPrev){
+        cabangSelect.value = prevVal;
+      } else if(CABANG_LIST.length){
+        cabangSelect.value = CABANG_LIST[0].id;
+      }
+
+      filterCabang.innerHTML = '<option value="">Semua cabang</option>';
+      CABANG_LIST.forEach(c=>{
+        const opt = document.createElement('option');
+        opt.value = c.nama; opt.textContent = c.nama;
+        filterCabang.appendChild(opt);
+      });
+    } else {
+      cabangSelect.style.display = 'none';
+      cabangReadonly.style.display = '';
+      cabangReadonly.value = currentUser.cabangNama || '(akun ini belum diset cabangnya, hubungi admin)';
+      filterCabang.style.display = 'none';
+    }
+    // pilihan cabang berubah (mis. cabang pertama baru dibuat / cabang terpilih dihapus) -> muat ulang data
+    if(appLoaded && currentUser.role === 'admin' && cabangSelect.value !== prevValForReload){
+      updateAddControlsState();
+      switchToDate(selectedDate);
+    }
+  }
+
+  function todayStr(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  function fmtDateLabel(dateStr){
+    const [y,m,d] = dateStr.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  let items = [];
+  let selectedDate = todayStr();
+  let activeToday = todayStr();
+  let dateIndex = []; // [{date:'YYYY-MM-DD', count:N}], every date that ever had data
+  let stream = null;
+  let detectTimer = null;
+  let barcodeDetector = null;
+  let lastCamCode = "";
+  let lastCamTime = 0;
+  let activeModalId = null;
+
+  // ---- notification sounds per ekspedisi (mp3 files, no on-screen management panel) ----
+  // File-file ini harus tetap berada di folder "sounds/" di sebelah index.html.
+  const DEFAULT_SOUNDS = {
+    "J&T Cargo Shopee": "sounds/J T CARGO SHOPEE.mp3",
+    "J&T Cargo TikTok": "sounds/J T CARGO TIKTOK.mp3",
+    "J&T Cargo Lazada": "sounds/J & T Cargo Lazada.mp3",
+    "SPX": "sounds/SPX.mp3",
+    "Anteraja Shopee": "sounds/anteraja shopee.mp3",
+    "J&T Express Tiktok": "sounds/J and T Ekspress tiktok.mp3",
+    "J&T Express": "sounds/J and T Ekspress.mp3",
+    "POS ID Shopee": "sounds/POS ID Shopee.mp3",
+    "LEX": "sounds/L E X.mp3",
+    "JNE": "sounds/J N E.mp3",
+    "SiCepat": "sounds/Si Cepat.mp3",
+    "Anteraja": "sounds/Anteraja.mp3",
+    "Ninja Xpress": "sounds/Ninja Ekspress.mp3",
+    "ID Express": "sounds/ID Ekspress.mp3",
+    "Lion Parcel": "sounds/Lion Parcel.mp3",
+    "Pos Indonesia": "sounds/Pos Indonesia.mp3",
+    "Shopee Express": "sounds/Shopee Ekspress.mp3",
+  };
+  const DUP_SOUND = "sounds/SCAN DOBEL.mp3";
+
+  // ---- suara custom yang diupload user per kurir (override DEFAULT_SOUNDS) ----
+  const CUSTOM_SOUNDS_KEY = "resi-custom-sounds";
+  let customSounds = {}; // kurir -> data URI mp3
+
+  async function persistCustomSounds(){
+    try{ await appStorage.set(CUSTOM_SOUNDS_KEY, JSON.stringify(customSounds), false); }
+    catch(e){ console.error('Gagal simpan suara custom', e); }
+  }
+  async function loadCustomSounds(){
+    try{
+      const res = await appStorage.get(CUSTOM_SOUNDS_KEY, false);
+      if(res && res.value) customSounds = JSON.parse(res.value);
+    }catch(e){ /* belum ada suara custom */ }
+  }
+
+  // fallback beep (dipakai kalau kurir tidak punya mp3 terdaftar) — tanpa file eksternal
+  let audioCtx = null;
+  function beep(freq, duration, type){
+    try{
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.value = freq;
+      gain.gain.value = 0.22;
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      osc.start(now);
+      osc.stop(now + duration);
+    }catch(e){ /* ignore playback errors (e.g. autoplay blocked before first interaction) */ }
+  }
+
+  function playCourierSound(kurir){
+    const custom = customSounds[kurir];
+    if(custom){
+      try{
+        const audio = new Audio(custom);
+        audio.play().catch(()=> beep(920, 0.14));
+        return;
+      }catch(e){ /* lanjut ke fallback di bawah */ }
+    }
+    const src = DEFAULT_SOUNDS[kurir];
+    if(!src){ beep(920, 0.14); return; }
+    try{
+      const audio = new Audio(src);
+      audio.play().catch(()=> beep(920, 0.14)); // e.g. file belum ada / belum diupload ke server
+    }catch(e){ beep(920, 0.14); }
+  }
+
+  // suara custom scan ke-2 / ke-3 per ekspedisi (diupload user). Return true kalau ada & dicoba diputar.
+  function playCustomSlot(kurir, slot){
+    const data = customSounds[`${kurir}::${slot}`];
+    if(!data) return false;
+    try{
+      const audio = new Audio(data);
+      audio.play().catch(()=> beep(920, 0.14));
+      return true;
+    }catch(e){ return false; }
+  }
+
+  // suara ucapan (Text-to-Speech bawaan browser) untuk scan ke-2 dan seterusnya
+  function speak(text){
+    try{
+      if(!('speechSynthesis' in window)) return false;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'id-ID';
+      const v = (window.speechSynthesis.getVoices() || []).find(x => /^id([-_]|$)/i.test(x.lang));
+      if(v) u.voice = v;
+      u.rate = 1.05;
+      window.speechSynthesis.speak(u);
+      return true;
+    }catch(e){ return false; }
+  }
+  if('speechSynthesis' in window){ try{ window.speechSynthesis.getVoices(); }catch(e){} }
+
+  function playDupSound(){
+    try{
+      const audio = new Audio(DUP_SOUND);
+      audio.play().catch(()=> beep(240, 0.28, 'square'));
+    }catch(e){ beep(240, 0.28, 'square'); }
+  }
+
+  const resiInput = document.getElementById('resiInput');
+  const kurirSelect = document.getElementById('kurirSelect');
+  const catatanInput = document.getElementById('catatanInput');
+  const addBtn = document.getElementById('addBtn');
+  const stampBadge = document.getElementById('stampBadge');
+  const tableBody = document.getElementById('tableBody');
+  const emptyState = document.getElementById('emptyState');
+  const pager = document.getElementById('pager');
+  const pagerInfo = document.getElementById('pagerInfo');
+  const pagerBtns = document.getElementById('pagerBtns');
+  const pageSizeSel = document.getElementById('pageSizeSel');
+  let currentPage = 1;
+  let pageSize = 10;
+  try{ const ps = parseInt(localStorage.getItem('manifest-page-size'), 10); if([10,25,50,100].includes(ps)) pageSize = ps; }catch(e){}
+  pageSizeSel.value = String(pageSize);
+  const searchInput = document.getElementById('searchInput');
+  const filterKurir = document.getElementById('filterKurir');
+  const filterTahap = document.getElementById('filterTahap');
+  const filterBatch = document.getElementById('filterBatch');
+  const clearFilterBtn = document.getElementById('clearFilterBtn');
+  const statToday = document.getElementById('statToday');
+  const statTotal = document.getElementById('statTotal');
+  const statDup = document.getElementById('statDup');
+  const statNoDetail = document.getElementById('statNoDetail');
+  const courierChips = document.getElementById('courierChips');
+  const exportBtn = document.getElementById('exportBtn');
+  const resetAllBtn = document.getElementById('resetAllBtn');
+  const camToggleBtn = document.getElementById('camToggleBtn');
+  const camWrap = document.getElementById('camWrap');
+  const camVideo = document.getElementById('camVideo');
+  const camStatus = document.getElementById('camStatus');
+  const camUnsupportedInline = document.getElementById('camUnsupportedInline');
+  const toastContainer = document.getElementById('toastContainer');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const modalResiLabel = document.getElementById('modalResiLabel');
+  const mNamaToko = document.getElementById('mNamaToko');
+  const mNamaPenerima = document.getElementById('mNamaPenerima');
+  const mAlamat = document.getElementById('mAlamat');
+  const mNamaBarang = document.getElementById('mNamaBarang');
+  const mQty = document.getElementById('mQty');
+  const mTanggalKirim = document.getElementById('mTanggalKirim');
+  const mCatatan = document.getElementById('mCatatan');
+  const modalCancelBtn = document.getElementById('modalCancelBtn');
+  const modalSaveBtn = document.getElementById('modalSaveBtn');
+  const ocrPasteArea = document.getElementById('ocrPasteArea');
+  const ocrExtractBtn = document.getElementById('ocrExtractBtn');
+  const selectAllChk = document.getElementById('selectAllChk');
+  const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+  const prefixSettingsBtn = document.getElementById('prefixSettingsBtn');
+  const prefixModalOverlay = document.getElementById('prefixModalOverlay');
+  const prefixList = document.getElementById('prefixList');
+  const prefixCancelBtn = document.getElementById('prefixCancelBtn');
+  const prefixSaveBtn = document.getElementById('prefixSaveBtn');
+  const prefixResetBtn = document.getElementById('prefixResetBtn');
+  const dateSelect = document.getElementById('dateSelect');
+  const archiveNote = document.getElementById('archiveNote');
+  const backTodayBtn = document.getElementById('backTodayBtn');
+  const statTodayLabel = document.getElementById('statTodayLabel');
+  const newKurirName = document.getElementById('newKurirName');
+  const newKurirPrefix = document.getElementById('newKurirPrefix');
+  const newKurirSoundBtn = document.getElementById('newKurirSoundBtn');
+  const newKurirSoundInput = document.getElementById('newKurirSoundInput');
+  const newKurirSoundStatus = document.getElementById('newKurirSoundStatus');
+  const addKurirBtn = document.getElementById('addKurirBtn');
+
+  let selectedIds = new Set();
+
+  let KURIR_LIST = ["J&T Cargo Shopee","J&T Cargo TikTok","J&T Cargo Lazada","SPX","Anteraja Shopee","J&T Express Tiktok","POS ID Shopee","LEX","JNE","J&T Express","SiCepat","Anteraja","Ninja Xpress","ID Express","Lion Parcel","Pos Indonesia","Shopee Express","Lainnya"];
+
+  function rebuildKurirList(){
+    KURIR_LIST = COURIER_PREFIXES.map(c => c.kurir).concat(["Lainnya"]);
+  }
+
+  function rebuildKurirOptions(){
+    const prevKurirVal = kurirSelect.value;
+    const prevFilterVal = filterKurir.value;
+    kurirSelect.innerHTML = '';
+    KURIR_LIST.forEach(k=>{
+      const opt = document.createElement('option');
+      opt.value = k; opt.textContent = k;
+      kurirSelect.appendChild(opt);
+    });
+    filterKurir.innerHTML = '<option value="">Semua kurir</option>';
+    KURIR_LIST.forEach(k=>{
+      const opt = document.createElement('option');
+      opt.value = k; opt.textContent = k;
+      filterKurir.appendChild(opt);
+    });
+    if(KURIR_LIST.includes(prevKurirVal)) kurirSelect.value = prevKurirVal;
+    if(prevFilterVal === '' || KURIR_LIST.includes(prevFilterVal)) filterKurir.value = prevFilterVal;
+  }
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function fmtTime(iso){
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2,'0');
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function fmtDate(iso){
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2,'0');
+    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+  }
+
+  function fmtJam(iso){
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2,'0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  function isToday(iso){
+    const d = new Date(iso), n = new Date();
+    return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+  }
+
+  function showToast(msg, type){
+    const t = document.createElement('div');
+    t.className = 'toast' + (type ? (' '+type) : '');
+    t.textContent = msg;
+    toastContainer.appendChild(t);
+    setTimeout(()=>t.remove(), 3000);
+  }
+
+  function showStamp(prior){
+    // prior = berapa kali resi ini sudah discan sebelumnya
+    stampBadge.textContent = prior === 0 ? '✓ Tersimpan' : (prior === 1 ? '✓ Siap kirim' : '⚠ Sudah scan');
+    stampBadge.classList.remove('show','dup');
+    void stampBadge.offsetWidth;
+    if(prior >= 2) stampBadge.classList.add('dup');
+    stampBadge.classList.add('show');
+  }
+
+  // ---- index tanggal (buat dropdown "📅 Tanggal") & daftar resi, sekarang dari database ----
+  async function loadDateIndex(cabangId){
+    try{ return await api('resi.php?dates=1&cabang_id=' + encodeURIComponent(cabangId)); }
+    catch(e){ showToast(e.message, 'warn'); return []; }
+  }
+  function upsertDateIndex(idx, date, count){
+    const i = idx.findIndex(d=>d.date===date);
+    if(count > 0){
+      if(i>=0) idx[i].count = count; else idx.push({date, count});
+    } else if(i>=0){
+      idx.splice(i,1);
+    }
+    idx.sort((a,b)=> b.date.localeCompare(a.date));
+    return idx;
+  }
+
+  async function loadItemsForDate(date, cabangId){
+    try{ return await api('resi.php?date=' + encodeURIComponent(date) + '&cabang_id=' + encodeURIComponent(cabangId)); }
+    catch(e){ showToast(e.message, 'warn'); return []; }
+  }
+
+  async function loadItemsForDateAllCabang(date){
+    return loadItemsForDate(date, ALL_CABANG_SENTINEL);
+  }
+
+  // Catatan: dulu fungsi ini menyimpan seluruh array `items` sekaligus ke
+  // localStorage/window.storage tiap ada perubahan. Sekarang tiap aksi (tambah/
+  // edit/hapus resi) langsung memanggil api/resi.php sendiri-sendiri, jadi tidak
+  // perlu lagi ada langkah "persist" terpisah — fungsi ini cuma menyegarkan
+  // index tanggal & dropdown supaya angka jumlah resi tetap akurat.
+  async function refreshDateIndex(){
+    if(isViewingAllCabang()) return;
+    dateIndex = upsertDateIndex(dateIndex, selectedDate, items.length);
+    await populateDateSelect();
+  }
+
+  function grandTotal(){
+    if(isViewingAllCabang()) return items.length;
+    const map = new Map(dateIndex.map(d=>[d.date, d.count]));
+    map.set(selectedDate, items.length);
+    let total = 0;
+    map.forEach(v => total += v);
+    return total;
+  }
+
+  async function populateDateSelect(){
+    const today = todayStr();
+    let map;
+    if(isViewingAllCabang()){
+      map = new Map();
+      const idx = await loadDateIndex(ALL_CABANG_SENTINEL);
+      idx.forEach(d => map.set(d.date, d.count));
+      map.set(selectedDate, items.length);
+    } else {
+      map = new Map(dateIndex.map(d=>[d.date, d.count]));
+      map.set(selectedDate, items.length);
+    }
+    if(!map.has(today)) map.set(today, 0);
+    const sorted = Array.from(map.keys()).sort((a,b)=> b.localeCompare(a));
+    dateSelect.innerHTML = '';
+    sorted.forEach(d=>{
+      const opt = document.createElement('option');
+      opt.value = d;
+      const count = map.get(d) || 0;
+      const label = d === today ? `Hari ini (${fmtDateLabel(d)})` : fmtDateLabel(d);
+      opt.textContent = `${label} — ${count} resi`;
+      dateSelect.appendChild(opt);
+    });
+    dateSelect.value = selectedDate;
+  }
+
+  function updateAddControlsState(){
+    const isViewingToday = selectedDate === todayStr();
+    const allMode = isViewingAllCabang();
+    const noCabang = currentUser.role === 'admin' && CABANG_LIST.length === 0;
+    const canAdd = isViewingToday && !allMode && !noCabang;
+    if(!resiInput.dataset.ph) resiInput.dataset.ph = resiInput.placeholder;
+    resiInput.placeholder = canAdd ? resiInput.dataset.ph
+      : noCabang ? 'Belum ada cabang — buat cabang dulu di "Kelola Cabang & User"'
+      : allMode ? 'Mode gabungan: pilih 1 cabang di atas untuk input resi'
+      : 'Arsip tanggal lama — klik "Kembali ke hari ini" untuk input resi';
+    resiInput.disabled = !canAdd;
+    addBtn.disabled = !canAdd;
+    kurirSelect.disabled = !canAdd;
+    catatanInput.disabled = !canAdd;
+    if(!canAdd){
+      if(camWrap.classList.contains('active')) stopCamera();
+      camToggleBtn.disabled = true;
+    } else {
+      camToggleBtn.disabled = typeof camAvailable !== 'undefined' && !camAvailable;
+    }
+    archiveNote.style.display = canAdd ? 'none' : 'inline-flex';
+    document.getElementById('archiveNote').innerHTML = noCabang
+      ? '🏢 Belum ada cabang. Klik <b>Kelola Cabang &amp; User</b> di atas, tambah cabang dulu — setelah itu kolom resi aktif.'
+      : allMode
+      ? '🔀 Mode gabungan semua cabang — hanya untuk lihat &amp; unduh Excel, pilih 1 cabang dulu buat nambah/edit resi.'
+      : '📁 Mode arsip — resi baru cuma bisa ditambah di sesi hari ini. <button class="ghost small" id="backTodayBtn" type="button">Kembali ke hari ini</button>';
+    const btn = document.getElementById('backTodayBtn');
+    if(btn) btn.addEventListener('click', ()=> switchToDate(todayStr()));
+  }
+
+  async function switchToDate(date){
+    selectedDate = date;
+    liveSig = null;
+    if(isViewingAllCabang()){
+      items = await loadItemsForDateAllCabang(date);
+    } else {
+      const cabangId = getActiveCabangId();
+      dateIndex = await loadDateIndex(cabangId);
+      items = await loadItemsForDate(date, cabangId);
+    }
+    selectedIds = new Set();
+    updateAddControlsState();
+    await populateDateSelect();
+    render();
+  }
+
+  dateSelect.addEventListener('change', ()=> switchToDate(dateSelect.value));
+  // catatan: tombol "Kembali ke hari ini" di-render ulang & di-bind dinamis di updateAddControlsState()
+  // karena konten archiveNote berubah tergantung mode gabungan/tidak.
+
+  // cek pergantian hari secara berkala, biar sesi baru otomatis mulai kosong tiap hari
+  function checkDateRollover(){
+    const nowToday = todayStr();
+    if(nowToday !== activeToday){
+      const wasViewingToday = (selectedDate === activeToday);
+      activeToday = nowToday;
+      if(wasViewingToday){
+        switchToDate(nowToday);
+        showToast('Sesi baru dimulai untuk hari ini 🌅');
+      } else {
+        populateDateSelect();
+      }
+    }
+  }
+  setInterval(checkDateRollover, 60000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible') checkDateRollover();
+  });
+
+  async function load(){
+    CABANG_LIST = await apiLoadCabangList();
+    if(currentUser.role === 'admin') USERS = await apiLoadUsers();
+    populateCabangControls();
+    activeToday = todayStr();
+    await switchToDate(activeToday);
+    appLoaded = true;
+    autoSyncShopee(false);
+    if(currentUser.role === 'admin' && CABANG_LIST.length === 0){
+      showToast('Belum ada cabang — buat dulu lewat "Kelola Cabang & User"', 'warn');
+    }
+  }
+
+  // ============== LOGIN / SESI ==============
+  const loginOverlay = document.getElementById('loginOverlay');
+  const loginUsername = document.getElementById('loginUsername');
+  const loginPassword = document.getElementById('loginPassword');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginError = document.getElementById('loginError');
+  const appWrap = document.getElementById('appWrap');
+  const sessionUserLabel = document.getElementById('sessionUserLabel');
+  const sessionRoleTag = document.getElementById('sessionRoleTag');
+  const manageBtn = document.getElementById('manageBtn');
+  const shopeeBtn = document.getElementById('shopeeBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const cabangSelect = document.getElementById('cabangSelect');
+  const cabangReadonly = document.getElementById('cabangReadonly');
+  const filterCabang = document.getElementById('filterCabang');
+  const adminModalOverlay = document.getElementById('adminModalOverlay');
+  const adminModalCloseBtn = document.getElementById('adminModalCloseBtn');
+  const newCabangName = document.getElementById('newCabangName');
+  const addCabangBtn = document.getElementById('addCabangBtn');
+  const cabangListWrap = document.getElementById('cabangListWrap');
+  const newUserUsername = document.getElementById('newUserUsername');
+  const newUserPassword = document.getElementById('newUserPassword');
+  const newUserRole = document.getElementById('newUserRole');
+  const newUserCabang = document.getElementById('newUserCabang');
+  const addUserBtn = document.getElementById('addUserBtn');
+  const userListWrap = document.getElementById('userListWrap');
+
+  function showLoginError(msg){ loginError.textContent = msg; loginError.classList.add('show'); }
+  function hideLoginError(){ loginError.classList.remove('show'); }
+
+  // Normalisasi respons dari api/login.php & api/session.php ke bentuk yang dipakai UI
+  function userFromApi(u){
+    return {
+      id: u.id,
+      username: u.username,
+      role: u.role,
+      cabangId: u.cabang_id,
+      cabangNama: u.cabang_nama || ''
+    };
+  }
+
+  async function enterApp(){
+    loginOverlay.style.display = 'none';
+    appWrap.style.display = 'block';
+    sessionUserLabel.textContent = '👤 ' + currentUser.username + (currentUser.cabangNama ? (' · ' + currentUser.cabangNama) : '');
+    sessionRoleTag.textContent = currentUser.role === 'admin' ? 'ADMIN' : 'USER';
+    manageBtn.style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
+    shopeeBtn.style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
+    await load();
+  }
+
+  async function doLogin(){
+    hideLoginError();
+    const username = loginUsername.value.trim();
+    const password = loginPassword.value;
+    if(!username || !password){
+      showLoginError('Username & password wajib diisi.');
+      return;
+    }
+    loginBtn.disabled = true;
+    try{
+      const u = await api('login.php', { method: 'POST', body: JSON.stringify({ username, password }) });
+      currentUser = userFromApi(u);
+      await enterApp();
+    }catch(e){
+      showLoginError(e.message || 'Username atau password salah.');
+    }finally{
+      loginBtn.disabled = false;
+    }
+  }
+  loginBtn.addEventListener('click', doLogin);
+  loginPassword.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doLogin(); });
+  loginUsername.addEventListener('keydown', (e)=>{ if(e.key==='Enter') loginPassword.focus(); });
+
+  logoutBtn.addEventListener('click', async ()=>{
+    try{ await api('logout.php', { method: 'POST' }); }catch(e){ /* tetap lanjut logout di sisi UI */ }
+    currentUser = null;
+    appLoaded = false;
+    appWrap.style.display = 'none';
+    loginOverlay.style.display = 'flex';
+    loginUsername.value = ''; loginPassword.value = '';
+    hideLoginError();
+    loginUsername.focus();
+  });
+
+  cabangSelect.addEventListener('change', ()=>{
+    updateAddControlsState();
+    switchToDate(selectedDate);
+  });
+  filterCabang.addEventListener('change', resetPage);
+
+  // ============== ADMIN: KELOLA CABANG & USER (lewat api/cabang.php & api/users.php) ==============
+  async function renameCabang(cabangId, newName){
+    const trimmed = (newName || '').trim();
+    const current = findCabangById(cabangId);
+    if(!trimmed || (current && trimmed === current.nama)) return false;
+    try{
+      await api('cabang.php', { method: 'PUT', body: JSON.stringify({ id: cabangId, nama: trimmed }) });
+    }catch(e){
+      showToast(e.message, 'warn');
+      return false;
+    }
+    CABANG_LIST = await apiLoadCabangList();
+    // kalau cabang milik user yang lagi login ikut berubah, sinkronkan tampilan header
+    if(currentUser.role !== 'admin' && String(currentUser.cabangId) === String(cabangId)){
+      currentUser.cabangNama = trimmed;
+      sessionUserLabel.textContent = '👤 ' + currentUser.username + (currentUser.cabangNama ? (' · ' + currentUser.cabangNama) : '');
+    }
+    return true;
+  }
+
+  function renderCabangList(){
+    cabangListWrap.innerHTML = CABANG_LIST.map(c=>`
+      <div class="admin-row">
+        <span class="meta"><b>${escapeHtml(c.nama)}</b></span>
+        <span style="display:flex;gap:6px;">
+          <button type="button" class="ghost small" data-edit-cabang="${c.id}">Edit</button>
+          <button type="button" class="ghost small" data-del-cabang="${c.id}">Hapus</button>
+        </span>
+      </div>`).join('') || '<p class="hint">Belum ada cabang. Tambahkan minimal 1 cabang dulu.</p>';
+    cabangListWrap.querySelectorAll('[data-edit-cabang]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.getAttribute('data-edit-cabang');
+        const c = findCabangById(id);
+        const newName = prompt('Ganti nama cabang:', c ? c.nama : '');
+        if(newName === null) return; // dibatalkan
+        const ok = await renameCabang(id, newName);
+        if(ok){
+          renderCabangList();
+          renderUserList();
+          populateNewUserCabangOptions();
+          populateCabangControls();
+          await switchToDate(selectedDate);
+          showToast(`Cabang diganti jadi "${newName.trim()}"`, 'success');
+        }
+      });
+    });
+    cabangListWrap.querySelectorAll('[data-del-cabang]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.getAttribute('data-del-cabang');
+        const c = findCabangById(id);
+        if(!confirm(`Hapus cabang "${c ? c.nama : ''}"? Cabang yang masih punya user atau data resi tidak bisa dihapus.`)) return;
+        try{
+          await api('cabang.php', { method: 'DELETE', body: JSON.stringify({ id }) });
+        }catch(e){
+          showToast(e.message, 'warn');
+          return;
+        }
+        CABANG_LIST = await apiLoadCabangList();
+        renderCabangList();
+        populateNewUserCabangOptions();
+        populateCabangControls();
+        showToast('Cabang dihapus');
+      });
+    });
+  }
+  function populateNewUserCabangOptions(){
+    newUserCabang.innerHTML = '';
+    CABANG_LIST.forEach(c=>{
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.nama;
+      newUserCabang.appendChild(opt);
+    });
+  }
+  let editingUserId = null;
+  function renderUserList(){
+    userListWrap.innerHTML = USERS.map(u=>{
+      if(u.id === editingUserId){
+        const cabOpts = CABANG_LIST.map(c=>`<option value="${c.id}" ${String(c.id)===String(u.cabang_id)?'selected':''}>${escapeHtml(c.nama)}</option>`).join('');
+        const isSelf = u.id === currentUser.id;
+        return `
+      <div class="admin-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+        <div class="row-2">
+          <input type="text" data-eu="username" value="${escapeHtml(u.username)}" placeholder="Username">
+          <input type="text" data-eu="password" value="" placeholder="Password baru (kosongkan jika tidak diganti)" autocomplete="off">
+        </div>
+        <div class="row-2">
+          <select data-eu="role" ${isSelf ? 'disabled title="Tidak bisa mengubah role akun sendiri"' : ''}>
+            <option value="user" ${u.role==='user'?'selected':''}>User (staf 1 cabang)</option>
+            <option value="admin" ${u.role==='admin'?'selected':''}>Admin (lihat semua cabang)</option>
+          </select>
+          <select data-eu="cabang" style="${u.role==='admin'?'display:none;':''}">${cabOpts}</select>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="accent small" data-eu-save="${u.id}">Simpan</button>
+          <button type="button" class="ghost small" data-eu-cancel="1">Batal</button>
+        </div>
+      </div>`;
+      }
+      return `
+      <div class="admin-row">
+        <span class="meta"><b>${escapeHtml(u.username)}</b> — ${u.role === 'admin' ? 'Admin' : escapeHtml(u.cabang_nama || '(belum ada cabang)')}</span>
+        <span style="display:flex;gap:6px;">
+          <button type="button" class="ghost small" data-edit-user="${u.id}">Edit</button>
+          <button type="button" class="ghost small" data-del-user="${u.id}" ${u.id===currentUser.id ? 'disabled title="Tidak bisa hapus akun sendiri"' : ''}>Hapus</button>
+        </span>
+      </div>`;
+    }).join('');
+
+    userListWrap.querySelectorAll('[data-edit-user]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ editingUserId = Number(btn.getAttribute('data-edit-user')); renderUserList(); });
+    });
+    const cancel = userListWrap.querySelector('[data-eu-cancel]');
+    if(cancel) cancel.addEventListener('click', ()=>{ editingUserId = null; renderUserList(); });
+    const roleSel = userListWrap.querySelector('[data-eu="role"]');
+    if(roleSel) roleSel.addEventListener('change', ()=>{
+      userListWrap.querySelector('[data-eu="cabang"]').style.display = roleSel.value === 'admin' ? 'none' : '';
+    });
+    const saveBtn = userListWrap.querySelector('[data-eu-save]');
+    if(saveBtn) saveBtn.addEventListener('click', async ()=>{
+      const id = Number(saveBtn.getAttribute('data-eu-save'));
+      const q = k => userListWrap.querySelector(`[data-eu="${k}"]`);
+      const payload = { id, username: q('username').value.trim(), password: q('password').value, role: q('role').value, cabang_id: q('cabang').value };
+      if(!payload.username){ showToast('Username wajib diisi', 'warn'); return; }
+      saveBtn.disabled = true;
+      try{
+        await api('users.php', { method: 'PUT', body: JSON.stringify(payload) });
+      }catch(e){
+        showToast(e.message, 'warn');
+        saveBtn.disabled = false;
+        return;
+      }
+      if(id === currentUser.id){
+        currentUser.username = payload.username;
+        sessionUserLabel.textContent = '👤 ' + currentUser.username + (currentUser.cabangNama ? (' · ' + currentUser.cabangNama) : '');
+      }
+      editingUserId = null;
+      USERS = await apiLoadUsers();
+      renderUserList();
+      showToast(payload.password ? 'User & password diperbarui' : 'User diperbarui', 'success');
+    });
+
+    userListWrap.querySelectorAll('[data-del-user]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = Number(btn.getAttribute('data-del-user'));
+        const u = USERS.find(x=>x.id===id);
+        if(!u || u.id === currentUser.id) return;
+        if(!confirm(`Hapus user "${u.username}"?`)) return;
+        try{
+          await api('users.php', { method: 'DELETE', body: JSON.stringify({ id }) });
+        }catch(e){
+          showToast(e.message, 'warn');
+          return;
+        }
+        USERS = await apiLoadUsers();
+        renderUserList();
+        showToast('User dihapus');
+      });
+    });
+  }
+  function openAdminModal(){
+    editingUserId = null;
+    populateNewUserCabangOptions();
+    renderCabangList();
+    renderUserList();
+    adminModalOverlay.classList.add('show');
+  }
+  manageBtn.addEventListener('click', openAdminModal);
+  adminModalCloseBtn.addEventListener('click', ()=> adminModalOverlay.classList.remove('show'));
+  adminModalOverlay.addEventListener('click', (e)=>{ if(e.target===adminModalOverlay) adminModalOverlay.classList.remove('show'); });
+
+  addCabangBtn.addEventListener('click', async ()=>{
+    const name = newCabangName.value.trim();
+    if(!name){ showToast('Nama cabang wajib diisi', 'warn'); return; }
+    try{
+      await api('cabang.php', { method: 'POST', body: JSON.stringify({ nama: name }) });
+    }catch(e){
+      showToast(e.message, 'warn');
+      return;
+    }
+    CABANG_LIST = await apiLoadCabangList();
+    newCabangName.value = '';
+    renderCabangList();
+    populateNewUserCabangOptions();
+    populateCabangControls();
+    showToast(`Cabang "${name}" ditambahkan`, 'success');
+  });
+
+  addUserBtn.addEventListener('click', async ()=>{
+    const username = newUserUsername.value.trim();
+    const password = newUserPassword.value;
+    const role = newUserRole.value;
+    const cabang_id = role === 'admin' ? null : newUserCabang.value;
+    if(!username || !password){ showToast('Username & password wajib diisi', 'warn'); return; }
+    if(role !== 'admin' && !cabang_id){ showToast('Tambahkan cabang dulu sebelum bikin user staf', 'warn'); return; }
+    try{
+      await api('users.php', { method: 'POST', body: JSON.stringify({ username, password, role, cabang_id }) });
+    }catch(e){
+      showToast(e.message, 'warn');
+      return;
+    }
+    USERS = await apiLoadUsers();
+    newUserUsername.value = ''; newUserPassword.value = '';
+    renderUserList();
+    showToast(`User "${username}" ditambahkan`, 'success');
+  });
+
+  newUserRole.addEventListener('change', ()=>{
+    newUserCabang.style.display = newUserRole.value === 'admin' ? 'none' : '';
+  });
+
+  function findDuplicates(resi, excludeId){
+    const norm = resi.trim().toLowerCase();
+    return items.filter(it => it.id !== excludeId && it.resi.trim().toLowerCase() === norm);
+  }
+
+  function normResi(s){ return (s||'').toString().trim().toLowerCase(); }
+
+  // Tahap scan tiap baris: 1 = scan pertama, 2 = scan kedua (siap kirim), 3 = scan ketiga dst (sudah scan).
+  // Dihitung dari urutan waktu scan resi yang sama pada daftar yang sedang ditampilkan.
+  const TAHAP_LABEL = { 1: 'Scan 1', 2: 'Siap kirim', 3: 'Sudah scan' };
+  function computeStages(){
+    const order = items.slice().sort((a,b)=> String(a.waktu).localeCompare(String(b.waktu)) || (a.id - b.id));
+    const cnt = new Map();
+    order.forEach(it=>{
+      const k = normResi(it.resi);
+      const n = (cnt.get(k) || 0) + 1;
+      cnt.set(k, n);
+      it.tahap = n >= 3 ? 3 : n;
+    });
+  }
+
+  // ---- kode unik (prefix) per kurir, dipakai untuk auto-deteksi & bisa diedit lewat modal ----
+  const PREFIX_STORAGE_KEY = "resi-courier-prefixes";
+  const DEFAULT_COURIER_PREFIXES = [
+    { kurir: 'J&T Cargo Shopee', prefixes: ['201'] },
+    { kurir: 'J&T Cargo TikTok', prefixes: ['570'] },
+    { kurir: 'J&T Cargo Lazada', prefixes: ['300'] },
+    { kurir: 'SPX', prefixes: ['SPX', 'ID'] },
+    { kurir: 'Anteraja', prefixes: ['110', '100'] },
+    { kurir: 'Anteraja Shopee', prefixes: ['1100'] },
+    { kurir: 'J&T Express Tiktok', prefixes: ['JY', 'JX'] },
+    { kurir: 'POS ID Shopee', prefixes: ['SHPE'] },
+    { kurir: 'Ninja Xpress', prefixes: ['NVID'] },
+    { kurir: 'Lion Parcel', prefixes: ['LPN'] },
+    { kurir: 'ID Express', prefixes: ['IDEX'] },
+    { kurir: 'SiCepat', prefixes: ['SICE'] },
+    { kurir: 'Pos Indonesia', prefixes: ['POS'] },
+    { kurir: 'LEX', prefixes: ['LEX'] },
+    { kurir: 'JNE', prefixes: ['JNE'] },
+    { kurir: 'J&T Express', prefixes: ['JTEX'] },
+    { kurir: 'Shopee Express', prefixes: [] },
+  ];
+  let COURIER_PREFIXES = DEFAULT_COURIER_PREFIXES.map(c => ({ kurir: c.kurir, prefixes: [...c.prefixes] }));
+
+  async function persistPrefixes(){
+    try{ await appStorage.set(PREFIX_STORAGE_KEY, JSON.stringify(COURIER_PREFIXES), false); }
+    catch(e){ console.error('Gagal simpan kode unik kurir', e); }
+  }
+
+  async function loadPrefixes(){
+    try{
+      const res = await appStorage.get(PREFIX_STORAGE_KEY, false);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(Array.isArray(parsed) && parsed.length) COURIER_PREFIXES = parsed;
+      }
+    }catch(e){ /* pakai default */ }
+    await loadCustomSounds();
+    rebuildKurirList();
+    rebuildKurirOptions();
+  }
+
+  function detectCourier(resi){
+    const code = (resi || '').toString().trim().toUpperCase();
+    const match = COURIER_PREFIXES.find(c => (c.prefixes||[]).some(p => p && code.startsWith(p.toString().trim().toUpperCase())));
+    return match ? match.kurir : 'LEX';
+  }
+
+  async function addResi(rawResi, kurir, catatan){
+    if(isViewingAllCabang()){
+      showToast('Mode gabungan semua cabang cuma buat lihat & export — pilih 1 cabang dulu buat nambah resi', 'warn');
+      return;
+    }
+    if(selectedDate !== todayStr()){
+      showToast('Kamu lagi lihat arsip tanggal lama — pindah ke "Hari ini" dulu buat nambah resi baru', 'warn');
+      return;
+    }
+    const resi = (rawResi || '').trim();
+    if(!resi){
+      showToast('Nomor resi kosong', 'warn');
+      return;
+    }
+    const dupes = findDuplicates(resi, null);
+    const isDup = dupes.length > 0;
+    const detectedKurir = detectCourier(resi);
+    const finalKurir = detectedKurir || kurir || 'LEX';
+
+    let item;
+    try{
+      item = await api('resi.php', {
+        method: 'POST',
+        body: JSON.stringify({ resi, kurir: finalKurir, catatan: catatan || '', cabang_id: getActiveCabangId() })
+      });
+    }catch(e){
+      showToast(e.message, 'warn');
+      return;
+    }
+
+    items.unshift(item);
+    render();
+    await refreshDateIndex();
+    if(!item.orderSn) autoSyncShopee(true); // belum ketemu pesanannya -> tarik pesanan terbaru lalu cocokkan ulang
+    showStamp(dupes.length);
+    // scan ke-1: seperti biasa | ke-2: suara "siap kirim" + ekspedisi | ke-3 dst: "sudah scan"
+    const prior = dupes.length; // berapa kali resi ini sudah discan sebelum scan ini
+    if(prior === 0){
+      playCourierSound(item.kurir);
+      showToast(`Resi "${resi}" ditambahkan`, 'success');
+    } else if(prior === 1){
+      const nama = String(item.kurir || '').replace(/&/g, ' dan ');
+      if(!playCustomSlot(item.kurir, 2) && !speak('Siap kirim, ' + nama)) playCourierSound(item.kurir);
+      showToast(`Resi "${resi}" siap kirim (${item.kurir})`, 'success');
+    } else {
+      if(!playCustomSlot(item.kurir, 3) && !speak('Sudah scan')) playDupSound();
+      showToast(`Resi "${resi}" sudah discan (${prior + 1}x)`, 'warn');
+    }
+    if(navigator.vibrate){ navigator.vibrate(isDup ? [40,60,40] : 60); }
+  }
+
+  async function deleteItem(id){
+    if(isViewingAllCabang()){
+      showToast('Mode gabungan semua cabang tidak bisa hapus data — pilih cabangnya dulu', 'warn');
+      return;
+    }
+    try{
+      await api('resi.php', { method: 'DELETE', body: JSON.stringify({ id }) });
+    }catch(e){
+      showToast(e.message, 'warn');
+      return;
+    }
+    items = items.filter(it => it.id !== id);
+    selectedIds.delete(id);
+    render();
+    await refreshDateIndex();
+  }
+
+  async function updateItem(id, patch){
+    if(isViewingAllCabang()){
+      showToast('Mode gabungan semua cabang tidak bisa edit data — pilih cabangnya dulu', 'warn');
+      return;
+    }
+    const it = items.find(x=>x.id===id);
+    if(!it) return;
+    let updated;
+    try{
+      updated = await api('resi.php', { method: 'PUT', body: JSON.stringify(Object.assign({ id }, patch)) });
+    }catch(e){
+      showToast(e.message, 'warn');
+      return;
+    }
+    Object.assign(it, updated);
+    render();
+  }
+
+  // nama user yang scan (kalau akunnya sudah dihapus, tampilkan nama cabang sebagai cadangan)
+  function scanLabel(it){
+    return it.scanOleh || it.cabang || '-';
+  }
+
+  function itemName(x){ return (x.nama || '') + (x.varian ? ' - ' + x.varian : '') + (x.sku ? ' [' + x.sku + ']' : ''); }
+  function fmtRupiah(n){ return 'Rp' + Number(n || 0).toLocaleString('id-ID'); }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function getFiltered(){
+    const q = searchInput.value.trim().toLowerCase();
+    const k = filterKurir.value;
+    const t = filterTahap.value;
+    const b = filterBatch.value;
+    const c = filterCabang.value;
+    return items.filter(it=>{
+      if(k && it.kurir !== k) return false;
+      if(t && String(it.tahap) !== t) return false;
+      if(b === 'new' ? it.batch : (b && String(it.batch) !== b)) return false;
+      if(c && it.cabang !== c) return false;
+      if(q){
+        const hay = [it.resi, it.scanOleh, it.catatan, it.namaToko, it.namaPenerima, it.namaBarang, it.alamat]
+          .map(v => (v||'').toLowerCase()).join(' ');
+        if(!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function render(){
+    computeStages();
+    // stats
+    statToday.textContent = items.length;
+    statTodayLabel.textContent = (selectedDate === todayStr()) ? 'hari ini' : ('tgl ' + fmtDateLabel(selectedDate));
+    statTotal.textContent = grandTotal();
+    let dupCount = 0;
+    const seen = new Map();
+    items.forEach(it=>{
+      const key = it.resi.trim().toLowerCase();
+      seen.set(key, (seen.get(key)||0) + 1);
+    });
+    seen.forEach(v=>{ if(v>1) dupCount += v; });
+    statDup.textContent = dupCount;
+    const noDetailCount = items.filter(it => !(it.namaToko || it.namaPenerima || it.alamat || it.namaBarang || it.qty || it.tanggalKirim)).length;
+    statNoDetail.textContent = noDetailCount;
+
+    // chips per courier
+    const counts = {};
+    items.forEach(it=>{ counts[it.kurir] = (counts[it.kurir]||0)+1; });
+    courierChips.innerHTML = '';
+    Object.keys(counts).sort((a,b)=>counts[b]-counts[a]).forEach(k=>{
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.textContent = `${k}: ${counts[k]}`;
+      courierChips.appendChild(c);
+    });
+    [1,2,3].forEach(t=>{
+      const n = items.filter(it => it.tahap === t).length;
+      if(!n) return;
+      const c = document.createElement('span');
+      c.className = 'chip tahap-chip t' + t;
+      c.textContent = `${TAHAP_LABEL[t]}: ${n}`;
+      courierChips.appendChild(c);
+    });
+
+    // opsi filter batch (ikut data yang ada)
+    const batchSet = Array.from(new Set(items.map(it => it.batch).filter(Boolean))).sort((x,y)=>x-y);
+    const batchSig = batchSet.join(',') + '|' + items.some(it => !it.batch);
+    if(filterBatch.dataset.sig !== batchSig){
+      const cur = filterBatch.value;
+      filterBatch.innerHTML = '<option value="">Semua batch</option><option value="new">Belum diekspor</option>' +
+        batchSet.map(n => `<option value="${n}">Batch ${n}</option>`).join('');
+      filterBatch.value = Array.from(filterBatch.options).some(o => o.value === cur) ? cur : '';
+      filterBatch.dataset.sig = batchSig;
+    }
+
+    const filtered = getFiltered();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if(currentPage > totalPages) currentPage = totalPages;
+    if(currentPage < 1) currentPage = 1;
+    const pageStart = (currentPage - 1) * pageSize;
+    const pageList = filtered.slice(pageStart, pageStart + pageSize);
+    tableBody.innerHTML = '';
+    emptyState.style.display = filtered.length ? 'none' : 'block';
+    renderPager(filtered.length, totalPages, pageStart, pageList.length);
+
+    pageList.forEach((it, i)=>{
+      const idx = pageStart + i;
+      const dupCountForRow = items.filter(x=>x.resi.trim().toLowerCase()===it.resi.trim().toLowerCase()).length;
+      const tr = document.createElement('tr');
+      if(dupCountForRow > 1) tr.classList.add('is-dup');
+
+      const tdChk = document.createElement('td');
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = selectedIds.has(it.id);
+      chk.addEventListener('change', ()=>{
+        if(chk.checked) selectedIds.add(it.id); else selectedIds.delete(it.id);
+        syncSelectionUI();
+      });
+      tdChk.appendChild(chk);
+      tr.appendChild(tdChk);
+
+      const tdNo = document.createElement('td');
+      tdNo.textContent = idx+1;
+      tr.appendChild(tdNo);
+
+      const tdResi = document.createElement('td');
+      tdResi.className = 'resi-cell';
+      tdResi.textContent = it.resi;
+      if(dupCountForRow > 1){
+        const tag = document.createElement('span');
+        tag.className = 'dup-tag';
+        tag.textContent = 'DUP ×' + dupCountForRow;
+        tdResi.appendChild(tag);
+      }
+      tr.appendChild(tdResi);
+
+      const tdKurir = document.createElement('td');
+      const sel = document.createElement('select');
+      sel.className = 'courier-select';
+      KURIR_LIST.forEach(k=>{
+        const o = document.createElement('option');
+        o.value = k; o.textContent = k;
+        if(k === it.kurir) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.disabled = isViewingAllCabang();
+      sel.addEventListener('change', ()=> updateItem(it.id, {kurir: sel.value}));
+      tdKurir.appendChild(sel);
+      tr.appendChild(tdKurir);
+
+      const tdTahap = document.createElement('td');
+      const tg = document.createElement('span');
+      tg.className = 'tahap-tag t' + it.tahap;
+      tg.textContent = TAHAP_LABEL[it.tahap];
+      tdTahap.appendChild(tg);
+      tr.appendChild(tdTahap);
+
+      const tdBatch = document.createElement('td');
+      tdBatch.textContent = it.batch ? ('Batch ' + it.batch) : 'Baru';
+      tdBatch.style.color = it.batch ? '' : '#b45309';
+      if(!it.batch) tdBatch.style.fontWeight = '700';
+      tr.appendChild(tdBatch);
+
+      const tdCabang = document.createElement('td');
+      tdCabang.textContent = scanLabel(it);
+      tr.appendChild(tdCabang);
+
+      const tdTime = document.createElement('td');
+      tdTime.className = 'time-cell';
+      tdTime.textContent = fmtTime(it.waktu);
+      tr.appendChild(tdTime);
+
+      const tdDetail = document.createElement('td');
+      tdDetail.className = 'detail-cell';
+      const hasDetail = it.namaToko || it.namaPenerima || it.alamat || it.namaBarang || it.sku || it.qty || it.tanggalKirim;
+      let detailHtml = '';
+      if(hasDetail){
+        detailHtml += `<span class="match-tag ${it.matched ? 'ok' : 'no'}">${it.matched ? 'Otomatis' : 'Manual'}</span><br>`;
+        if(it.namaBarang) detailHtml += `<span class="dlabel">Brg:</span> ${escapeHtml(it.namaBarang)}${it.qty ? ' ×'+escapeHtml(String(it.qty)) : ''}<br>`;
+        if(it.sku) detailHtml += `<span class="dlabel">SKU:</span> ${escapeHtml(it.sku)}<br>`;
+        if(it.items && it.items.length){
+          detailHtml += '<span class="dlabel">Rincian item:</span><br>' + it.items.map(x =>
+            `&bull; ${escapeHtml(itemName(x))} &times;${x.qty} = ${fmtRupiah(x.subtotal)}`).join('<br>') + '<br>';
+        }
+        if(it.subtotal) detailHtml += `<span class="dlabel">Subtotal:</span> <b>${fmtRupiah(it.subtotal)}</b><br>`;
+        if(it.namaPenerima) detailHtml += `<span class="dlabel">Ke:</span> ${escapeHtml(it.namaPenerima)}<br>`;
+        if(it.namaToko) detailHtml += `<span class="dlabel">Toko/Pengirim:</span> ${escapeHtml(it.namaToko)}<br>`;
+        if(it.orderSn) detailHtml += `<span class="dlabel">No. Pesanan:</span> ${escapeHtml(it.orderSn)}`;
+      } else {
+        detailHtml = `<span class="match-tag no">Belum ada detail</span>`;
+      }
+      tdDetail.innerHTML = detailHtml;
+      tr.appendChild(tdDetail);
+
+      const tdAksi = document.createElement('td');
+      tdAksi.style.whiteSpace = 'nowrap';
+      const detailBtn = document.createElement('button');
+      detailBtn.className = 'detail-btn';
+      detailBtn.textContent = hasDetail ? 'Edit' : 'Isi';
+      detailBtn.disabled = isViewingAllCabang();
+      detailBtn.addEventListener('click', ()=> openModal(it.id));
+      tdAksi.appendChild(detailBtn);
+      if(!isViewingAllCabang()){
+        const delBtn = document.createElement('button');
+        delBtn.className = 'del-btn';
+        delBtn.textContent = '✕';
+        delBtn.title = 'Hapus';
+        delBtn.addEventListener('click', ()=>{
+          if(confirm('Hapus resi "' + it.resi + '" dari daftar?')) deleteItem(it.id);
+        });
+        tdAksi.appendChild(delBtn);
+      }
+      tr.appendChild(tdAksi);
+
+      tableBody.appendChild(tr);
+    });
+
+    syncSelectionUI(pageList);
+  }
+
+  function getPageRows(){
+    const f = getFiltered();
+    const start = (Math.min(currentPage, Math.max(1, Math.ceil(f.length / pageSize))) - 1) * pageSize;
+    return f.slice(start, start + pageSize);
+  }
+
+  function renderPager(total, totalPages, start, shown){
+    pager.style.display = total > 0 ? 'flex' : 'none';
+    if(!total) return;
+    pagerInfo.textContent = `Menampilkan ${start + 1}–${start + shown} dari ${total}`;
+    const pages = [];
+    for(let p = 1; p <= totalPages; p++){
+      if(p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1) pages.push(p);
+      else if(pages[pages.length - 1] !== '…') pages.push('…');
+    }
+    pagerBtns.innerHTML = '';
+    const mk = (label, page, opts = {})=>{
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pg-btn' + (opts.active ? ' active' : '');
+      b.textContent = label;
+      b.disabled = !!opts.disabled;
+      if(page) b.addEventListener('click', ()=>{ currentPage = page; render(); });
+      pagerBtns.appendChild(b);
+    };
+    mk('‹', currentPage - 1, { disabled: currentPage <= 1 });
+    pages.forEach(p => p === '…' ? mk('…', 0, { disabled: true }) : mk(String(p), p, { active: p === currentPage }));
+    mk('›', currentPage + 1, { disabled: currentPage >= totalPages });
+  }
+
+  function resetPage(){ currentPage = 1; render(); }
+
+  function syncSelectionUI(filtered){
+    const list = filtered || getFiltered();
+    const filteredIds = list.map(it=>it.id);
+    // drop selected ids that no longer exist in items at all (e.g. after export/reset)
+    const existingIds = new Set(items.map(it=>it.id));
+    selectedIds.forEach(id=>{ if(!existingIds.has(id)) selectedIds.delete(id); });
+
+    const selectedCount = selectedIds.size;
+    bulkDeleteBtn.textContent = `Hapus Terpilih (${selectedCount})`;
+    bulkDeleteBtn.disabled = selectedCount === 0;
+
+    if(filteredIds.length === 0){
+      selectAllChk.checked = false;
+      selectAllChk.indeterminate = false;
+    } else {
+      const selectedInView = filteredIds.filter(id=>selectedIds.has(id)).length;
+      selectAllChk.checked = selectedInView === filteredIds.length;
+      selectAllChk.indeterminate = selectedInView > 0 && selectedInView < filteredIds.length;
+    }
+  }
+
+  selectAllChk.addEventListener('change', ()=>{
+    const filteredIds = getPageRows().map(it=>it.id); // pilih semua = baris di halaman ini
+    if(selectAllChk.checked){
+      filteredIds.forEach(id=>selectedIds.add(id));
+    } else {
+      filteredIds.forEach(id=>selectedIds.delete(id));
+    }
+    render();
+  });
+
+  bulkDeleteBtn.addEventListener('click', async ()=>{
+    if(isViewingAllCabang()){
+      showToast('Mode gabungan semua cabang tidak bisa hapus data — pilih cabangnya dulu', 'warn');
+      return;
+    }
+    if(selectedIds.size === 0) return;
+    if(confirm(`Hapus ${selectedIds.size} resi terpilih dari daftar?`)){
+      try{
+        await api('resi.php', { method: 'DELETE', body: JSON.stringify({ ids: Array.from(selectedIds) }) });
+      }catch(e){
+        showToast(e.message, 'warn');
+        return;
+      }
+      items = items.filter(it => !selectedIds.has(it.id));
+      selectedIds.clear();
+      render();
+      await refreshDateIndex();
+      showToast('Resi terpilih dihapus');
+    }
+  });
+
+  // ---- add handlers ----
+  function handleAdd(){
+    addResi(resiInput.value, kurirSelect.value, catatanInput.value);
+    resiInput.value = '';
+    catatanInput.value = '';
+    resiInput.focus();
+  }
+  addBtn.addEventListener('click', handleAdd);
+  resiInput.addEventListener('input', ()=>{
+    if(resiInput.value.trim()) kurirSelect.value = detectCourier(resiInput.value);
+  });
+  resiInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      handleAdd();
+    }
+  });
+  // keep focus on input for handheld scanners
+  window.addEventListener('load', ()=> resiInput.focus());
+  document.addEventListener('click', (e)=>{
+    if(!camWrap.classList.contains('active') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON'){
+      resiInput.focus();
+    }
+  });
+
+  searchInput.addEventListener('input', resetPage);
+  filterKurir.addEventListener('change', resetPage);
+  filterTahap.addEventListener('change', resetPage);
+  filterBatch.addEventListener('change', resetPage);
+  pageSizeSel.addEventListener('change', ()=>{
+    pageSize = parseInt(pageSizeSel.value, 10) || 10;
+    try{ localStorage.setItem('manifest-page-size', String(pageSize)); }catch(e){}
+    resetPage();
+  });
+  clearFilterBtn.addEventListener('click', ()=>{
+    searchInput.value=''; filterKurir.value=''; filterTahap.value=''; filterBatch.value=''; resetPage();
+  });
+
+  resetAllBtn.addEventListener('click', async ()=>{
+    if(isViewingAllCabang()){
+      showToast('Mode gabungan semua cabang tidak bisa reset data — pilih cabangnya dulu', 'warn');
+      return;
+    }
+    if(items.length === 0) return;
+    if(confirm(`Hapus SEMUA data resi pada tanggal ${fmtDateLabel(selectedDate)}? Tindakan ini tidak bisa dibatalkan.`)){
+      try{
+        await api('resi.php', { method: 'DELETE', body: JSON.stringify({ all: true, date: selectedDate, cabang_id: getActiveCabangId() }) });
+      }catch(e){
+        showToast(e.message, 'warn');
+        return;
+      }
+      items = [];
+      render();
+      await refreshDateIndex();
+      showToast('Semua data tanggal ini dihapus');
+    }
+  });
+
+  // ---- export excel ----
+  const headerStyle = {
+    font: { bold: true },
+    fill: { patternType: 'solid', fgColor: { rgb: 'EFE6D0' } }
+  };
+
+  // garis tepi tipis di semua sel berisi (supaya tabel Excel rapi)
+  const THIN = { style: 'thin', color: { rgb: '9A9A9A' } };
+  const BORDER = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+  function addBorders(ws, all){
+    if(!ws['!ref']) return;
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for(let r = range.s.r; r <= range.e.r; r++){
+      for(let c = range.s.c; c <= range.e.c; c++){
+        const addr = XLSX.utils.encode_cell({ r, c });
+        let cell = ws[addr];
+        if(!cell){
+          if(!all) continue;
+          cell = ws[addr] = { t: 's', v: '' };
+        } else if(!all && (cell.v === '' || cell.v == null)){
+          continue;
+        }
+        cell.s = Object.assign({}, cell.s || {}, { border: BORDER });
+      }
+    }
+  }
+
+  const duplicateStyle = {
+    fill: { patternType: 'solid', fgColor: { rgb: 'FECACA' } },
+    font: { color: { rgb: '991B1B' }, bold: true }
+  };
+
+  // nomor batch ekspor ini: scan yang belum pernah diekspor ikut batch berikutnya
+  let exportNextBatch = 1;
+  const batchLabel = it => 'Batch ' + (it.batch || exportNextBatch);
+
+  function buildRekapSheet(exportItemsChron){
+    // group resi per kurir, keep only kurir that actually have data,
+    // ordered following KURIR_LIST so the layout stays predictable
+    const groups = {};
+    exportItemsChron.forEach(it=>{
+      const k = it.kurir || 'LAINNYA';
+      if(!groups[k]) groups[k] = [];
+      groups[k].push(it.resi);
+    });
+    const orderedKurir = KURIR_LIST.filter(k => groups[k] && groups[k].length);
+    Object.keys(groups).forEach(k=>{
+      if(!orderedKurir.includes(k)) orderedKurir.push(k); // safety net for unlisted kurir values
+    });
+
+    // sort + de-duplicate resi inside each courier column (INPUT column keeps every raw scan, duplicates included)
+    orderedKurir.forEach(k=>{
+      groups[k] = Array.from(new Set(groups[k])).sort();
+    });
+
+    const rawList = exportItemsChron.map(it => it.resi);
+    const cabangListForExport = exportItemsChron.map(it => it.cabang || '-');
+    const scanOlehList = exportItemsChron.map(it => scanLabel(it));
+    const tanggalList = exportItemsChron.map(it => fmtDate(it.waktu));
+    const jamList = exportItemsChron.map(it => fmtJam(it.waktu));
+    const batchList = exportItemsChron.map(it => batchLabel(it));
+
+    // count occurrences of every resi across the whole batch, to flag duplicates
+    const resiCounts = {};
+    rawList.forEach(r=>{
+      const key = normResi(r);
+      resiCounts[key] = (resiCounts[key] || 0) + 1;
+    });
+    const isDup = (val) => val && (resiCounts[normResi(val)] || 0) > 1;
+
+    // header row: INPUT | Cabang | Tanggal Scan | Jam Scan | (blank) | TOTAL RESI | No | Kurir1 | No | Kurir2 | ...
+    const header = ['INPUT', 'Cabang', 'Discan Oleh', 'Tanggal Scan', 'Jam Scan', 'Batch Ekspor', '', 'TOTAL RESI', ...orderedKurir.flatMap(k => ['No', k])];
+
+    const maxRows = Math.max(rawList.length, ...orderedKurir.map(k => groups[k].length), 0);
+    const aoa = [header];
+    for(let i=0; i<maxRows; i++){
+      const row = [
+        rawList[i] || '',
+        cabangListForExport[i] || '',
+        scanOlehList[i] || '',
+        tanggalList[i] || '',
+        jamList[i] || '',
+        batchList[i] || '',
+        '',
+        i===0 ? exportItemsChron.length : ''
+      ];
+      orderedKurir.forEach(k=>{
+        const val = groups[k][i];
+        row.push(val !== undefined ? i+1 : '');
+        row.push(val !== undefined ? val : '');
+      });
+      aoa.push(row);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const cols = [{wch:22},{wch:18},{wch:26},{wch:12},{wch:10},{wch:13},{wch:2},{wch:11}];
+    orderedKurir.forEach(()=> cols.push({wch:5},{wch:22}));
+    ws['!cols'] = cols;
+    header.forEach((_, c)=>{
+      const addr = XLSX.utils.encode_cell({ r:0, c });
+      if(ws[addr]) ws[addr].s = headerStyle;
+    });
+
+    // highlight duplicate resi in red: only in the raw INPUT column (A).
+    // courier columns are already de-duplicated, so leave them styled normally.
+    for(let r=1; r<=maxRows; r++){
+      const inputAddr = XLSX.utils.encode_cell({ r, c: 0 });
+      if(ws[inputAddr] && isDup(ws[inputAddr].v)) ws[inputAddr].s = duplicateStyle;
+    }
+
+    addBorders(ws, false); // hanya sel yang berisi (kolom pemisah dan sel kosong tidak diberi garis)
+    return ws;
+  }
+
+  // Sheet kedua: 1 baris per resi lengkap dengan detail pesanan (nomor pesanan, penerima, alamat, barang, qty, dst.)
+  function buildDetailSheet(list){
+    const header = ['No','Tanggal Scan','Jam Scan','Batch Ekspor','Cabang','Discan Oleh','Nomor Resi','Kurir','Nomor Pesanan','Nama Toko / Pengirim','Nama Penerima','Alamat','Nama Barang','SKU','Qty','Subtotal varian pesanan','Subtotal Pesanan','Tanggal Kirim','Catatan'];
+    const COL = { barang: 12, sku: 13, qty: 14, subVarian: 15, subtotal: 16, kirim: 17 };
+    const aoa = [header];
+    const merges = [];
+    // satu resi = satu blok baris; resi dengan beberapa varian dirinci per baris (barang, qty, subtotal varian)
+    const seen = new Map();
+    list.forEach(it=>{
+      const k = normResi(it.resi);
+      const f = seen.get(k);
+      if(!f){ seen.set(k, Object.assign({}, it)); return; }
+      ['orderSn','namaToko','namaPenerima','alamat','namaBarang','sku','qty','subtotal','items','tanggalKirim','catatan','kurir'].forEach(x=>{
+        const empty = Array.isArray(f[x]) ? !f[x].length : !f[x];
+        if(empty && it[x]) f[x] = it[x];
+      });
+    });
+    let no = 0;
+    Array.from(seen.values()).forEach(it=>{
+      no++;
+      const rows = (it.items && it.items.length)
+        ? it.items.map(x => ({ barang: (x.nama || '') + (x.varian ? ' - ' + x.varian : ''), sku: x.sku || '', qty: x.qty || '', sub: x.subtotal || 0 }))
+        : [{ barang: it.namaBarang || '', sku: it.sku || '', qty: it.qty || '', sub: '' }];
+      const r0 = aoa.length;
+      rows.forEach((x, i)=>{
+        if(i === 0){
+          aoa.push([no, fmtDate(it.waktu), fmtJam(it.waktu), batchLabel(it), it.cabang || '-', scanLabel(it), it.resi, it.kurir || '', it.orderSn || '',
+            it.namaToko || '', it.namaPenerima || '', it.alamat || '', x.barang, x.sku, x.qty, x.sub, it.subtotal || '', it.tanggalKirim || '', it.catatan || '']);
+        } else {
+          const row = new Array(header.length).fill('');
+          row[COL.barang] = x.barang; row[COL.sku] = x.sku; row[COL.qty] = x.qty; row[COL.subVarian] = x.sub;
+          aoa.push(row);
+        }
+      });
+      if(rows.length > 1){
+        [COL.subtotal, COL.kirim].forEach(c => merges.push({ s: { r: r0, c }, e: { r: aoa.length - 1, c } }));
+      }
+    });
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:5},{wch:12},{wch:10},{wch:13},{wch:16},{wch:26},{wch:22},{wch:18},{wch:20},{wch:22},{wch:22},{wch:44},{wch:44},{wch:22},{wch:6},{wch:24},{wch:18},{wch:14},{wch:24}];
+    if(merges.length) ws['!merges'] = merges;
+    header.forEach((_, c)=>{
+      const addr = XLSX.utils.encode_cell({ r:0, c });
+      if(ws[addr]) ws[addr].s = headerStyle;
+    });
+    for(let r=1; r<aoa.length; r++){
+      [COL.subVarian, COL.subtotal].forEach(c=>{
+        const a = XLSX.utils.encode_cell({ r, c });
+        if(ws[a] && typeof ws[a].v === 'number') ws[a].z = '#,##0';
+      });
+      [COL.subtotal, COL.kirim].forEach(c=>{
+        const a = XLSX.utils.encode_cell({ r, c });
+        if(ws[a]) ws[a].s = Object.assign({}, ws[a].s || {}, { alignment: { vertical: 'center', horizontal: 'center' } });
+      });
+      // teks panjang dibungkus & rata atas supaya baris tetap rapi
+      [11, COL.barang].forEach(c=>{
+        const a = XLSX.utils.encode_cell({ r, c });
+        if(ws[a]) ws[a].s = Object.assign({}, ws[a].s || {}, { alignment: { wrapText: true, vertical: 'center' } });
+      });
+    }
+    addBorders(ws, true); // semua sel termasuk yang digabung/kosong, agar kotaknya utuh
+    return ws;
+  }
+
+  exportBtn.addEventListener('click', ()=>{
+    if(items.length === 0){
+      showToast('Belum ada data untuk diekspor', 'warn');
+      return;
+    }
+    const exportItemsChron = items.slice().reverse(); // chronological, oldest first
+    // batch ekspor: scan yang belum pernah diekspor masuk batch berikutnya
+    exportNextBatch = Math.max(0, ...items.map(it => it.batch || 0)) + 1;
+    const newIds = items.filter(it => !it.batch).map(it => it.id);
+
+    const wb = XLSX.utils.book_new();
+    computeStages();
+    const SHEETS = { 1: 'Scan 1 - Ekspedisi', 2: 'Scan 2 - Siap Kirim', 3: 'Scan 3 - Sudah Scan' };
+    [1,2,3].forEach(t=>{
+      const list = exportItemsChron.filter(it => it.tahap === t);
+      XLSX.utils.book_append_sheet(wb, buildRekapSheet(list), SHEETS[t]);
+    });
+    XLSX.utils.book_append_sheet(wb, buildRekapSheet(exportItemsChron), 'Manifest Resi'); // semua scan, format lama
+    XLSX.utils.book_append_sheet(wb, buildDetailSheet(exportItemsChron), 'Detail Pesanan');
+
+    const stamp = new Date();
+    const scopeLabel = getActiveCabangNama();
+    const fname = `No resi ${selectedDate} - ${scopeLabel} ( ${String(stamp.getHours()).padStart(2,'0')}.${String(stamp.getMinutes()).padStart(2,'0')} ).xlsx`;
+    XLSX.writeFile(wb, fname);
+    showToast('Excel berhasil diunduh: ' + fname + (newIds.length ? (' (Batch ' + exportNextBatch + ': ' + newIds.length + ' resi baru)') : ''), 'success');
+    if(newIds.length){
+      // tandai resi yang baru saja masuk Excel; scan yang datang setelah ini otomatis jadi "Baru"
+      api('export_mark.php', { method: 'POST', body: JSON.stringify({ ids: newIds, batch: exportNextBatch }) })
+        .then(()=> switchToDate(selectedDate))
+        .catch(e => showToast('Gagal menandai batch: ' + e.message, 'warn'));
+    }
+  });
+
+  // ---- camera scanning ----
+  // Dua mesin pembaca: BarcodeDetector bawaan browser (Chrome Android) dan ZXing (cadangan, jalan di
+  // iPhone/Safari, Firefox, dan browser lain). Keduanya butuh koneksi aman (HTTPS atau localhost) untuk kamera.
+  const hasBarcodeDetector = 'BarcodeDetector' in window;
+  const hasZXing = typeof ZXing !== 'undefined';
+  const hasMediaApi = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  const camAvailable = hasMediaApi && (hasBarcodeDetector || hasZXing);
+  let zxReader = null, zxCanvas = null, zxBusy = false;
+  if(!camAvailable){
+    camUnsupportedInline.style.display = 'inline';
+    camUnsupportedInline.textContent = !window.isSecureContext
+      ? 'Kamera diblokir browser karena alamat ini bukan HTTPS. Buka lewat alamat https:// (lihat panduan), atau pakai scanner USB / input manual.'
+      : (!hasMediaApi ? 'Browser ini tidak mengizinkan akses kamera.' : 'Pembaca barcode gagal dimuat (cek koneksi internet), muat ulang halaman.');
+    camToggleBtn.disabled = true;
+  }
+
+  function onCamCode(value){
+    const now = Date.now();
+    if(value === lastCamCode && (now - lastCamTime) < 2500) return; // debounce kode yang sama
+    lastCamCode = value;
+    lastCamTime = now;
+    camStatus.textContent = 'Terdeteksi: ' + value;
+    addResi(value, kurirSelect.value, catatanInput.value);
+  }
+
+  async function startCamera(){
+    try{
+      if(hasBarcodeDetector){
+        const formats = await window.BarcodeDetector.getSupportedFormats().catch(()=>null);
+        const wanted = ['code_128','code_39','code_93','codabar','ean_13','ean_8','itf','upc_a','upc_e','qr_code'];
+        const use = formats ? wanted.filter(f=>formats.includes(f)) : wanted;
+        barcodeDetector = new window.BarcodeDetector({ formats: use.length ? use : undefined });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        camVideo.srcObject = stream;
+        await camVideo.play();
+        detectTimer = setInterval(detectLoop, 350);
+      } else {
+        const F = ZXing.BarcodeFormat;
+        const hints = new Map();
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [F.CODE_128, F.CODE_39, F.CODE_93, F.CODABAR, F.EAN_13, F.EAN_8, F.ITF, F.UPC_A, F.UPC_E, F.QR_CODE]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        zxReader = new ZXing.MultiFormatReader();
+        zxReader.setHints(hints);
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
+        camVideo.srcObject = stream;
+        await camVideo.play();
+        zxCanvas = document.createElement('canvas');
+        detectTimer = setInterval(zxLoop, 250);
+      }
+      camWrap.classList.add('active');
+      camToggleBtn.textContent = '✕ Tutup kamera';
+      camStatus.textContent = 'Arahkan kamera ke barcode resi...';
+    }catch(err){
+      showToast('Tidak bisa mengakses kamera: ' + (err.message || err), 'warn');
+      stopCamera();
+    }
+  }
+
+  function stopCamera(){
+    if(detectTimer){ clearInterval(detectTimer); detectTimer = null; }
+    zxReader = null; zxCanvas = null;
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+    camWrap.classList.remove('active');
+    camToggleBtn.textContent = '📷 Scan pakai kamera HP';
+  }
+
+  // Pembaca ZXing: ambil 1 bingkai video -> kanvas -> coba baca barcode (dipanggil tiap 250 ms)
+  function zxLoop(){
+    if(zxBusy || !zxReader || !camVideo.videoWidth) return;
+    zxBusy = true;
+    try{
+      zxCanvas.width = camVideo.videoWidth;
+      zxCanvas.height = camVideo.videoHeight;
+      zxCanvas.getContext('2d', { willReadFrequently: true }).drawImage(camVideo, 0, 0);
+      const bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(zxCanvas)));
+      const res = zxReader.decode(bitmap);
+      if(res) onCamCode(res.getText());
+    }catch(e){ /* tidak ada barcode di bingkai ini: normal */ }
+    finally{ zxBusy = false; }
+  }
+
+  async function detectLoop(){
+    if(!barcodeDetector || !camVideo.videoWidth) return;
+    try{
+      const codes = await barcodeDetector.detect(camVideo);
+      if(codes && codes.length) onCamCode(codes[0].rawValue);
+    }catch(err){
+      // detection errors are non-fatal; ignore transient frames
+    }
+  }
+
+  camToggleBtn.addEventListener('click', ()=>{
+    if(camWrap.classList.contains('active')){
+      stopCamera();
+    }else{
+      startCamera();
+    }
+  });
+
+  // ---- detail modal ----
+  function openModal(id){
+    const it = items.find(x=>x.id===id);
+    if(!it) return;
+    activeModalId = id;
+    modalResiLabel.textContent = 'Resi: ' + it.resi;
+    mNamaToko.value = it.namaToko || '';
+    mNamaPenerima.value = it.namaPenerima || '';
+    mAlamat.value = it.alamat || '';
+    mNamaBarang.value = it.namaBarang || '';
+    mQty.value = it.qty || '';
+    mTanggalKirim.value = it.tanggalKirim || '';
+    mCatatan.value = it.catatan || '';
+    ocrPasteArea.value = '';
+    modalOverlay.classList.add('show');
+  }
+  function closeModal(){
+    modalOverlay.classList.remove('show');
+    activeModalId = null;
+  }
+  modalCancelBtn.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', (e)=>{ if(e.target === modalOverlay) closeModal(); });
+
+  // ---- OCR-pasted text extraction (heuristic, keyword-based) ----
+  function extractFromOcrText(raw){
+    const lines = raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    const result = { namaToko:'', namaPenerima:'', alamat:'', namaBarang:'', qty:'', tanggalKirim:'' };
+    const usedIdx = new Set();
+
+    const keywordMap = [
+      { field:'namaPenerima', re:/(kepada|penerima|yth\.?|nama\s*pembeli|customer)\s*[:\-]?\s*(.+)/i },
+      { field:'namaToko', re:/(pengirim|dari|nama\s*toko|toko|seller|shop)\s*[:\-]?\s*(.+)/i },
+      { field:'alamat', re:/(alamat)\s*[:\-]?\s*(.+)/i },
+      { field:'namaBarang', re:/(nama\s*barang|produk|item|isi\s*paket)\s*[:\-]?\s*(.+)/i },
+      { field:'qty', re:/(qty|jumlah|kuantitas|banyak)\s*[:\-]?\s*(\d+)/i },
+      { field:'tanggalKirim', re:/(tanggal\s*kirim|tgl\s*kirim|tanggal|date)\s*[:\-]?\s*(.+)/i }
+    ];
+
+    lines.forEach((line, idx)=>{
+      for(const km of keywordMap){
+        if(!result[km.field]){
+          const m = line.match(km.re);
+          if(m && m[2] && m[2].trim()){
+            result[km.field] = m[2].trim();
+            usedIdx.add(idx);
+            break;
+          }
+        }
+      }
+    });
+
+    // fallback: a standalone date-looking line
+    if(!result.tanggalKirim){
+      const dateRe = /\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{1,2}\s+(jan|feb|mar|apr|mei|jun|jul|agu|sep|okt|nov|des)\w*\s+\d{2,4})\b/i;
+      lines.forEach((line, idx)=>{
+        if(!result.tanggalKirim && !usedIdx.has(idx)){
+          const m = line.match(dateRe);
+          if(m){ result.tanggalKirim = m[0]; usedIdx.add(idx); }
+        }
+      });
+    }
+    // fallback: longest remaining line as address guess
+    if(!result.alamat){
+      let best = '', bestIdx = -1;
+      lines.forEach((line, idx)=>{
+        if(!usedIdx.has(idx) && line.length > best.length && /[a-zA-Z]/.test(line)){
+          best = line; bestIdx = idx;
+        }
+      });
+      if(bestIdx >= 0){ result.alamat = best; usedIdx.add(bestIdx); }
+    }
+    // fallback: first unused short line as recipient name guess
+    if(!result.namaPenerima){
+      const idx = lines.findIndex((l,i)=> !usedIdx.has(i) && l.length <= 40 && /[a-zA-Z]/.test(l));
+      if(idx >= 0){ result.namaPenerima = lines[idx]; usedIdx.add(idx); }
+    }
+    return result;
+  }
+
+  ocrExtractBtn.addEventListener('click', ()=>{
+    const raw = ocrPasteArea.value.trim();
+    if(!raw){
+      showToast('Tempel dulu teks hasil foto/OCR-nya', 'warn');
+      return;
+    }
+    const guess = extractFromOcrText(raw);
+    if(guess.namaToko && !mNamaToko.value) mNamaToko.value = guess.namaToko;
+    if(guess.namaPenerima && !mNamaPenerima.value) mNamaPenerima.value = guess.namaPenerima;
+    if(guess.alamat && !mAlamat.value) mAlamat.value = guess.alamat;
+    if(guess.namaBarang && !mNamaBarang.value) mNamaBarang.value = guess.namaBarang;
+    if(guess.qty && !mQty.value) mQty.value = guess.qty;
+    if(guess.tanggalKirim && !mTanggalKirim.value) mTanggalKirim.value = guess.tanggalKirim;
+    showToast('Field terisi otomatis — cek dan koreksi dulu sebelum disimpan', 'warn');
+  });
+  modalSaveBtn.addEventListener('click', ()=>{
+    if(!activeModalId) return;
+    updateItem(activeModalId, {
+      namaToko: mNamaToko.value.trim(),
+      namaPenerima: mNamaPenerima.value.trim(),
+      alamat: mAlamat.value.trim(),
+      namaBarang: mNamaBarang.value.trim(),
+      qty: mQty.value.trim(),
+      tanggalKirim: mTanggalKirim.value.trim(),
+      catatan: mCatatan.value.trim(),
+      matched: false // manually edited, no longer purely "auto"
+    });
+    showToast('Detail pesanan disimpan', 'success');
+    closeModal();
+  });
+
+  // ---- kode unik & suara kurir settings modal ----
+  let pendingNewKurirSound = null; // data URI menunggu disimpan pas "+ Tambah Ekspedisi" diklik
+
+  // kunci penyimpanan suara custom: slot 1 = nama kurir (scan ke-1, seperti dulu), slot 2 / 3 = "kurir::2" / "kurir::3"
+  const SLOT_LABEL = { 1: 'Scan ke-1', 2: 'Scan ke-2 (siap kirim)', 3: 'Scan ke-3 dst (sudah scan)' };
+  function soundKey(kurir, slot){ return slot === 1 ? kurir : `${kurir}::${slot}`; }
+  function playSlot(kurir, slot){
+    if(slot === 1){ playCourierSound(kurir); return; }
+    if(!playCustomSlot(kurir, slot)){
+      if(slot === 2){ if(!speak('Siap kirim, ' + String(kurir).replace(/&/g, ' dan '))) playCourierSound(kurir); }
+      else { if(!speak('Sudah scan')) playDupSound(); }
+    }
+  }
+
+  function renderPrefixList(){
+    prefixList.innerHTML = COURIER_PREFIXES.map((c, i) => {
+      const rows = [1,2,3].map(slot => {
+        const has = !!customSounds[soundKey(c.kurir, slot)];
+        const def = slot === 1 ? '— pakai suara default' : '— pakai suara ucapan otomatis';
+        return `
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="flex:0 0 150px;font-size:11px;font-weight:600;">${SLOT_LABEL[slot]}</span>
+          <span style="font-size:11px;color:${has ? 'var(--success)' : 'var(--ink-soft)'};">${has ? '🔊 suara custom' : def}</span>
+          <button type="button" class="ghost small" data-sound-upload="${i}:${slot}">Upload MP3</button>
+          <button type="button" class="ghost small" data-sound-play="${i}:${slot}">▶ Tes</button>
+          ${has ? `<button type="button" class="ghost small" data-sound-remove="${i}:${slot}">Hapus</button>` : ''}
+          <input type="file" accept="audio/mpeg,audio/mp3,.mp3" data-sound-file="${i}:${slot}" style="display:none;">
+        </div>`;
+      }).join('');
+      return `
+      <div style="display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:0 0 140px;font-size:13px;font-weight:600;">${escapeHtml(c.kurir)}</div>
+          <input type="text" class="prefix-input" data-idx="${i}" value="${escapeHtml((c.prefixes||[]).join(', '))}" placeholder="mis. 110, 100" style="flex:1;padding:7px 10px;font-size:13px;">
+        </div>
+        ${rows}
+      </div>`;
+    }).join('');
+
+    const parse = v => { const [idx, slot] = v.split(':').map(Number); return { kurir: COURIER_PREFIXES[idx].kurir, slot }; };
+    prefixList.querySelectorAll('[data-sound-upload]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        prefixList.querySelector(`[data-sound-file="${btn.getAttribute('data-sound-upload')}"]`).click();
+      });
+    });
+    prefixList.querySelectorAll('[data-sound-play]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const p = parse(btn.getAttribute('data-sound-play'));
+        playSlot(p.kurir, p.slot);
+      });
+    });
+    prefixList.querySelectorAll('[data-sound-remove]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const p = parse(btn.getAttribute('data-sound-remove'));
+        delete customSounds[soundKey(p.kurir, p.slot)];
+        await persistCustomSounds();
+        renderPrefixList();
+        showToast('Suara custom dihapus, balik ke default');
+      });
+    });
+    prefixList.querySelectorAll('[data-sound-file]').forEach(inp=>{
+      inp.addEventListener('change', (e)=>{
+        const p = parse(inp.getAttribute('data-sound-file'));
+        const file = e.target.files && e.target.files[0];
+        if(!file) return;
+        if(file.size > 2 * 1024 * 1024){
+          showToast('File terlalu besar, maksimal 2MB', 'warn');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = async ()=>{
+          customSounds[soundKey(p.kurir, p.slot)] = reader.result;
+          await persistCustomSounds();
+          renderPrefixList();
+          showToast(`Suara ${SLOT_LABEL[p.slot].toLowerCase()} untuk "${p.kurir}" berhasil diupload`, 'success');
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+  }
+
+  newKurirSoundBtn.addEventListener('click', ()=> newKurirSoundInput.click());
+  newKurirSoundInput.addEventListener('change', (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    if(file.size > 2 * 1024 * 1024){
+      showToast('File terlalu besar, maksimal 2MB', 'warn');
+      newKurirSoundInput.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      pendingNewKurirSound = reader.result;
+      newKurirSoundStatus.textContent = '✓ ' + file.name;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  addKurirBtn.addEventListener('click', async ()=>{
+    const name = newKurirName.value.trim();
+    if(!name){
+      showToast('Nama ekspedisi wajib diisi', 'warn');
+      return;
+    }
+    const dup = COURIER_PREFIXES.some(c => c.kurir.toLowerCase() === name.toLowerCase()) || name.toLowerCase() === 'lainnya';
+    if(dup){
+      showToast('Nama ekspedisi ini sudah ada di daftar', 'warn');
+      return;
+    }
+    const prefixes = newKurirPrefix.value.split(',').map(s=>s.trim()).filter(Boolean);
+    COURIER_PREFIXES.push({ kurir: name, prefixes });
+    if(pendingNewKurirSound){
+      customSounds[name] = pendingNewKurirSound;
+      await persistCustomSounds();
+    }
+    await persistPrefixes();
+    rebuildKurirList();
+    rebuildKurirOptions();
+    renderPrefixList();
+
+    newKurirName.value = '';
+    newKurirPrefix.value = '';
+    pendingNewKurirSound = null;
+    newKurirSoundStatus.textContent = 'Belum ada file';
+    newKurirSoundInput.value = '';
+
+    showToast(`Ekspedisi "${name}" ditambahkan`, 'success');
+  });
+
+  function openPrefixModal(){
+    renderPrefixList();
+    prefixModalOverlay.classList.add('show');
+  }
+  function closePrefixModal(){
+    prefixModalOverlay.classList.remove('show');
+  }
+  prefixSettingsBtn.addEventListener('click', openPrefixModal);
+  prefixCancelBtn.addEventListener('click', closePrefixModal);
+  prefixModalOverlay.addEventListener('click', (e)=>{ if(e.target === prefixModalOverlay) closePrefixModal(); });
+
+  prefixSaveBtn.addEventListener('click', ()=>{
+    const inputs = prefixList.querySelectorAll('.prefix-input');
+    inputs.forEach(inp=>{
+      const idx = Number(inp.getAttribute('data-idx'));
+      const codes = inp.value.split(',').map(s=>s.trim()).filter(Boolean);
+      COURIER_PREFIXES[idx].prefixes = codes;
+    });
+    persistPrefixes();
+    closePrefixModal();
+    showToast('Kode unik kurir disimpan', 'success');
+  });
+
+  prefixResetBtn.addEventListener('click', ()=>{
+    if(!confirm('Kembalikan semua kode unik kurir ke pengaturan default? Ekspedisi tambahan & suara custom yang sudah diupload tidak akan terhapus.')) return;
+    COURIER_PREFIXES = DEFAULT_COURIER_PREFIXES.map(c => ({ kurir: c.kurir, prefixes: [...c.prefixes] }));
+    persistPrefixes();
+    rebuildKurirList();
+    rebuildKurirOptions();
+    renderPrefixList();
+    showToast('Kode unik kurir dikembalikan ke default');
+  });
+
+  // ============== SHOPEE ==============
+  const shopeeModalOverlay = document.getElementById('shopeeModalOverlay');
+  const shopeeStatusBox = document.getElementById('shopeeStatusBox');
+  const shopeeConnectBox = document.getElementById('shopeeConnectBox');
+  const shopeeSyncBox = document.getElementById('shopeeSyncBox');
+  const shopeeAuthLink = document.getElementById('shopeeAuthLink');
+  const shopeeRedirectHint = document.getElementById('shopeeRedirectHint');
+  const shopeeCodeInput = document.getElementById('shopeeCodeInput');
+  const shopeeConnectBtn = document.getElementById('shopeeConnectBtn');
+  const shopeeSyncBtn = document.getElementById('shopeeSyncBtn');
+  const shopeeExportBtn = document.getElementById('shopeeExportBtn');
+  const shopeeDisconnectBtn = document.getElementById('shopeeDisconnectBtn');
+  const shopeeSyncResult = document.getElementById('shopeeSyncResult');
+  const shopeeDays = document.getElementById('shopeeDays');
+  const shopeeStatusSel = document.getElementById('shopeeStatus');
+
+  let curPlatform = 'shopee';
+  const PLAT_NAME = { shopee:'Shopee', lazada:'Lazada', tiktok:'TikTok Shop' };
+  function epUrl(action){
+    return curPlatform === 'shopee' ? `shopee.php?action=${action}` : `platform.php?p=${curPlatform}&action=${action}`;
+  }
+  document.querySelectorAll('.plat-tab').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      curPlatform = b.dataset.p;
+      document.querySelectorAll('.plat-tab').forEach(x=> x.className = (x===b ? 'secondary' : 'ghost') + ' small plat-tab');
+      shopeeStatusSel.parentElement.style.display = curPlatform === 'shopee' ? '' : 'none';
+      shopeeSyncResult.textContent = '';
+      refreshShopeeStatus();
+    });
+  });
+
+  async function refreshShopeeStatus(){
+    shopeeConnectBox.style.display = 'none';
+    shopeeSyncBox.style.display = 'none';
+    shopeeStatusBox.textContent = 'Memuat status...';
+    let s;
+    try{ s = await api(epUrl('status')); }
+    catch(e){ shopeeStatusBox.textContent = '⚠ ' + e.message; return; }
+    const warn = [];
+    if(!s.curl) warn.push('ekstensi PHP "curl" belum aktif');
+    if(!s.zip) warn.push('ekstensi PHP "zip" belum aktif (perlu untuk Excel pesanan)');
+    const tail = warn.length ? ' ⚠ ' + warn.join('; ') + '.' : '';
+    let last = '';
+    if(s.autosync_last){
+      const d = new Date(s.autosync_last.at * 1000);
+      const hh = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+      last = ' | Tarik otomatis terakhir ' + hh + ' — ' + Object.entries(s.autosync_last.result).map(([k,v]) => k + ' ' + v).join('; ');
+    }
+    if(!s.configured){
+      shopeeStatusBox.innerHTML = '⚠ ' + PLAT_NAME[curPlatform] + ' belum dikonfigurasi. Buka file <code>config.php</code> di folder aplikasi, isi kunci API ' + (curPlatform==='shopee' ? '(<b>partner_id</b> &amp; <b>partner_key</b>)' : '(<b>app_key</b> &amp; <b>app_secret</b> di blok <b>' + curPlatform + '</b>)') + ', simpan, lalu buka menu ini lagi.' + tail;
+      return;
+    }
+    if(!s.connected){
+      shopeeStatusBox.innerHTML = PLAT_NAME[curPlatform] + ': belum ada toko terhubung (mode: <b>' + escapeHtml(s.env) + '</b>).' + tail;
+      shopeeAuthLink.href = s.auth_url;
+      shopeeRedirectHint.textContent = s.redirect_url;
+      shopeeConnectBox.style.display = 'block';
+      return;
+    }
+    shopeeStatusBox.innerHTML = '✓ ' + PLAT_NAME[curPlatform] + ' terhubung (toko/ID ' + escapeHtml(String(s.shop_id)) + ', mode <b>' + escapeHtml(s.env) + '</b>). Pesanan tersimpan: <b>' + s.orders + '</b> (<b>' + s.orders_with_resi + '</b> sudah punya resi).' + tail + escapeHtml(last);
+    shopeeSyncBox.style.display = 'block';
+  }
+  shopeeBtn.addEventListener('click', ()=>{ shopeeModalOverlay.classList.add('show'); shopeeSyncResult.textContent = ''; refreshShopeeStatus(); });
+  document.getElementById('shopeeCloseBtn').addEventListener('click', ()=> shopeeModalOverlay.classList.remove('show'));
+  shopeeModalOverlay.addEventListener('click', (e)=>{ if(e.target===shopeeModalOverlay) shopeeModalOverlay.classList.remove('show'); });
+
+  shopeeConnectBtn.addEventListener('click', async ()=>{
+    const kode = shopeeCodeInput.value.trim();
+    if(!kode){ showToast('Tempel alamat hasil redirect dulu', 'warn'); return; }
+    shopeeConnectBtn.disabled = true;
+    try{
+      await api(epUrl('connect'), { method:'POST', body: JSON.stringify({ kode }) });
+      shopeeCodeInput.value = '';
+      showToast('Toko ' + PLAT_NAME[curPlatform] + ' terhubung', 'success');
+      autoSyncShopee(true); // langsung tarik pesanan pertama kali
+      await refreshShopeeStatus();
+    }catch(e){
+      showToast(e.message, 'warn');
+      shopeeStatusBox.textContent = '⚠ ' + e.message;
+    }finally{ shopeeConnectBtn.disabled = false; }
+  });
+
+  shopeeSyncBtn.addEventListener('click', async ()=>{
+    shopeeSyncBtn.disabled = true;
+    shopeeSyncBtn.textContent = 'Menarik pesanan... (jangan tutup halaman)';
+    shopeeSyncResult.textContent = '';
+    try{
+      const r = await api(epUrl('sync'), { method:'POST', body: JSON.stringify({ days: Number(shopeeDays.value), status: curPlatform==='shopee' ? shopeeStatusSel.value : '' }) });
+      let msg = `Selesai: ${r.fetched} pesanan (${r.new} baru, ${r.updated} diperbarui).`;
+      if(r.backfilled) msg += ` ${r.backfilled} resi yang sudah discan dilengkapi detailnya.`;
+      if(r.resi_pending) msg += ` Masih ada ${r.resi_pending} resi yang belum diambil — klik tarik lagi.`;
+      if(r.resi_failed) msg += ` ${r.resi_failed} resi gagal diambil (biasanya belum diatur pengirimannya).`;
+      shopeeSyncResult.textContent = msg;
+      showToast('Pesanan ' + PLAT_NAME[curPlatform] + ' ditarik', 'success');
+      await refreshShopeeStatus();
+      shopeeSyncResult.textContent = msg; // refreshShopeeStatus tidak menghapus ini, tapi pastikan tetap tampil
+      if(r.backfilled) await switchToDate(selectedDate);
+    }catch(e){
+      shopeeSyncResult.textContent = '⚠ ' + e.message;
+      showToast('Gagal menarik pesanan', 'warn');
+    }finally{
+      shopeeSyncBtn.disabled = false;
+      shopeeSyncBtn.textContent = '⬇ Tarik pesanan sekarang';
+    }
+  });
+
+  shopeeExportBtn.addEventListener('click', ()=>{ // ekspor semua marketplace yang sudah ditarik
+    const days = Number(shopeeDays.value) || 7;
+    const pad = n => String(n).padStart(2,'0');
+    const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const to = new Date(); const from = new Date(Date.now() - days*86400000);
+    window.location.href = API_BASE + `shopee.php?action=export&from=${fmt(from)}&to=${fmt(to)}`;
+  });
+
+  shopeeDisconnectBtn.addEventListener('click', async ()=>{
+    if(!confirm('Putuskan toko ' + PLAT_NAME[curPlatform] + '? Pesanan yang sudah tersimpan tidak dihapus.')) return;
+    try{ await api(epUrl('disconnect'), { method:'POST' }); }catch(e){ showToast(e.message,'warn'); }
+    refreshShopeeStatus();
+  });
+
+  // ---- tarik pesanan Shopee otomatis (tanpa klik) ----
+  let autoSyncRunning = false;
+  async function autoSyncShopee(force){
+    if(autoSyncRunning || !currentUser) return;
+    autoSyncRunning = true;
+    try{
+      const r = await api('shopee.php?action=autosync' + (force ? '&force=1' : ''));
+      if(r && r.backfilled){
+        await switchToDate(selectedDate); // resi yang sudah discan baru saja terlengkapi
+        showToast(`${r.backfilled} resi dilengkapi nomor pesanannya`, 'success');
+      }
+    }catch(e){ /* tarik otomatis gagal diam-diam; tidak mengganggu scan */ }
+    finally{ autoSyncRunning = false; }
+  }
+  setInterval(()=>{ if(appLoaded) autoSyncShopee(false); }, 60*1000);
+
+  // ---- pembaruan real-time: cek sidik jari daftar tiap 3 detik, muat ulang kalau ada yang berubah ----
+  // (scan dari HP/komputer lain, hasil tarik pesanan, dll muncul sendiri tanpa refresh)
+  let liveSig = null, liveBusy = false;
+  async function softReload(){
+    let list;
+    if(isViewingAllCabang()) list = await api('resi.php?date=' + encodeURIComponent(selectedDate) + '&cabang_id=' + encodeURIComponent(ALL_CABANG_SENTINEL));
+    else list = await api('resi.php?date=' + encodeURIComponent(selectedDate) + '&cabang_id=' + encodeURIComponent(getActiveCabangId()));
+    items = list;
+    render();
+    await refreshDateIndex();
+  }
+  async function liveTick(){
+    if(!appLoaded || liveBusy || !currentUser || document.hidden) return;
+    if(modalOverlay.classList.contains('show')) return; // jangan ganggu saat mengisi detail pesanan
+    liveBusy = true;
+    try{
+      const cab = isViewingAllCabang() ? ALL_CABANG_SENTINEL : getActiveCabangId();
+      const r = await api('resi.php?date=' + encodeURIComponent(selectedDate) + '&cabang_id=' + encodeURIComponent(cab) + '&sig=1');
+      if(r && r.sig !== liveSig){ liveSig = r.sig; await softReload(); }
+    }catch(e){ /* gangguan koneksi sesaat: coba lagi di putaran berikutnya */ }
+    finally{ liveBusy = false; }
+  }
+  setInterval(liveTick, 3000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) liveTick(); });
+
+  async function init(){
+    loadPrefixes(); // tidak tergantung login, aman dijalankan lebih dulu
+    // cek sesi login yang masih aktif di server (PHP session cookie)
+    try{
+      const u = await api('session.php');
+      currentUser = userFromApi(u);
+      await enterApp();
+      return;
+    }catch(e){ /* belum login / sesi habis — lanjut ke layar login */ }
+    loginOverlay.style.display = 'flex';
+    loginUsername.focus();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
